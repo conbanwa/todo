@@ -48,7 +48,6 @@ graph LR
 ## Scalability Strategies
 - Horizontal scaling: Shard MongoDB and Kafka clusters; use load-balanced Go Gin instances.
 - Auto-scaling: Monitor DAU/metrics to dynamically add nodes via Kubernetes.
-- P2P offloading: For high-traffic docs, shift to client-side P2P to minimize server load.
 
 ## Component Selection Reasons
 - **Go (Gin)**: Chosen for high concurrency and low overhead, reducing maintenance via minimal deps.
@@ -102,3 +101,15 @@ API endpoints:
 - `DELETE /todos/{id}` — delete
 
 CI: see `.github/workflows/ci.yml` which runs `go build` and `go test ./...`.
+
+Serving API docs locally
+
+- Start the server locally:
+
+```bash
+go run ./cmd/server
+```
+
+- Open the Swagger UI at: `http://localhost:8080/swagger/index.html` which loads the bundled OpenAPI JSON at `/docs/swagger.json`.
+
+To generate richer OpenAPI docs from code annotations, install `swag` (https://github.com/swaggo/swag) and run `swag init` in the project root; update the generated `docs` package or replace `docs/swagger.json` with the generated output.
