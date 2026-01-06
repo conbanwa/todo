@@ -2,7 +2,6 @@ package todo
 
 import (
 	"errors"
-	"sort"
 	"sync"
 )
 
@@ -72,30 +71,13 @@ func (s *InMemoryStore) Delete(id int64) error {
 func (s *InMemoryStore) List(opts ListOptions) ([]Todo, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	// copy items into a slice
 	out := make([]Todo, 0, len(s.items))
 	for _, v := range s.items {
-		if opts.Status != "" && v.Status != opts.Status {
-			continue
-		}
 		out = append(out, *v)
 	}
 
-	// sort
-	cmp := func(i, j int) bool { return out[i].ID < out[j].ID }
-	switch opts.SortBy {
-	case "due_date":
-		cmp = func(i, j int) bool { return out[i].DueDate.Before(out[j].DueDate) }
-	case "status":
-		cmp = func(i, j int) bool { return out[i].Status < out[j].Status }
-	case "name":
-		cmp = func(i, j int) bool { return out[i].Name < out[j].Name }
-	}
-	sort.SliceStable(out, func(i, j int) bool {
-		if opts.SortOrder == "desc" {
-			return !cmp(i, j)
-		}
-		return cmp(i, j)
-	})
-
-	return out, nil
+	// delegate filtering/sorting to helper
+	res := FilterAndSort(out, opts)
+	return res, nil
 }
