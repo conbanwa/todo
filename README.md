@@ -85,10 +85,10 @@ Pipeline: Commit → Tests (TDD-first) → Build → Deploy → Monitor.
 go mod tidy
 // running service
 // run locally
-go run ./cmd/server
+go run ./main.go
 
 // or build binary
-go build -o bin/todo ./cmd/server
+go build -o bin/todo ./
 ./bin/todo
 ```
 
@@ -100,14 +100,14 @@ API endpoints:
 - `PUT /todos/{id}` — update
 - `DELETE /todos/{id}` — delete
 
-CI: see `.github/workflows/ci.yml` which runs `go build` and `go test ./...`.
+CI: see `.github/workflows/go.yml` which runs `go build` and `go test ./...`.
 
 Serving API docs locally
 
 - Start the server locally:
 
 ```bash
-go run ./cmd/server
+go run ./
 ```
 
 - Open the Swagger UI at: `http://localhost:8080/swagger/index.html` which loads the bundled OpenAPI JSON at `/docs/swagger.json`.
