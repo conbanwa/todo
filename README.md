@@ -92,6 +92,27 @@ go build -o bin/todo ./
 ./bin/todo
 ```
 
+### Database Setup
+
+This application uses **SQLite** as the local data storage with a pure Go driver (no CGO required).
+
+- **Database Location**: By default, the database file is created in the current directory as `todos.db`
+- **Custom Database Path**: Set the `DB_PATH` environment variable to specify a custom database location:
+  ```bash
+  export DB_PATH=/path/to/your/database.db
+  go run ./main.go
+  ```
+  On Windows PowerShell:
+  ```powershell
+  $env:DB_PATH="C:\path\to\your\database.db"
+  go run ./main.go
+  ```
+- **Database Schema**: The SQLite database includes the following table:
+  - `todos`: Stores todo items with fields for id, name, description, due_date, status, priority, tags, created_at, and updated_at
+  - Indexes on `status` and `due_date` for improved query performance
+- **Automatic Initialization**: The database schema and indexes are automatically created on first run
+- **Pure Go Implementation**: Uses `github.com/glebarez/sqlite` (wraps `modernc.org/sqlite`) - **no CGO required**, no C compiler needed!
+
 API endpoints:
 
 - `GET /todos` — list todos (query: `status`, `sort_by`, `order`)

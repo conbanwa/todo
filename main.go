@@ -14,6 +14,8 @@ package main
 import (
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	docs "github.com/conbanwa/todo/docs"
 	"github.com/conbanwa/todo/internal/todo"
@@ -28,7 +30,24 @@ func main() {
 		addr = ":" + v
 	}
 
-	svc := todo.NewService(todo.NewInMemoryStore())
+	// Get database path from environment or use default
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "todos.db"
+	}
+
+	// Initialize SQLite store
+	store, err := todo.NewSQLiteStore(dbPath)
+	if err != nil {
+		log.Fatalf("failed to initialize SQLite store: %v", err)
+	}
+	defer func() {
+		if err := store.Close(); err != nil {
+			log.Printf("error closing database: %v", err)
+		}
+	}()
+
+	svc := todo.NewService(store)
 
 	r := gin.Default()
 
@@ -44,8 +63,18 @@ func main() {
 	// register API routes
 	todo.RegisterRoutes(r, svc)
 
+	// Graceful shutdown handling
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
 	log.Printf("starting server on %s", addr)
 	if err := r.Run(addr); err != nil {
 		log.Fatalf("server exited: %v", err)
 	}
+	}()
+
+	// Wait for interrupt signal
+	<-sigChan
+	log.Println("shutting down server...")
 }
