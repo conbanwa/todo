@@ -9,12 +9,18 @@ import (
 
 // RegisterRoutes registers todo REST routes on the provided Gin engine.
 func RegisterRoutes(r *gin.Engine, svc *Service) {
+	RegisterRoutesWithHub(r, svc, nil)
+}
+
+// RegisterRoutesWithHub registers todo REST routes with WebSocket hub for broadcasting.
+// If hub is nil, routes work without WebSocket broadcasting (backward compatible).
+func RegisterRoutesWithHub(r *gin.Engine, svc *Service, hub *Hub) {
 	g := r.Group("/todos")
 	g.GET("", func(c *gin.Context) { handleList(c, svc) })
-	g.POST("", func(c *gin.Context) { handleCreate(c, svc) })
+	g.POST("", func(c *gin.Context) { handleCreateWithBroadcast(c, svc, hub) })
 	g.GET(":id", func(c *gin.Context) { handleGet(c, svc) })
-	g.PUT(":id", func(c *gin.Context) { handleUpdate(c, svc) })
-	g.DELETE(":id", func(c *gin.Context) { handleDelete(c, svc) })
+	g.PUT(":id", func(c *gin.Context) { handleUpdateWithBroadcast(c, svc, hub) })
+	g.DELETE(":id", func(c *gin.Context) { handleDeleteWithBroadcast(c, svc, hub) })
 }
 
 // @Summary List todos
@@ -45,6 +51,10 @@ func handleList(c *gin.Context, svc *Service) {
 // @Success 201 {object} Todo
 // @Router /todos [post]
 func handleCreate(c *gin.Context, svc *Service) {
+	handleCreateWithBroadcast(c, svc, nil)
+}
+
+func handleCreateWithBroadcast(c *gin.Context, svc *Service, hub *Hub) {
 	var t Todo
 	if err := c.ShouldBindJSON(&t); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json"})
@@ -56,6 +66,12 @@ func handleCreate(c *gin.Context, svc *Service) {
 		return
 	}
 	t.ID = id
+
+	// Broadcast create event if hub is available
+	if hub != nil {
+		hub.BroadcastCreate(&t)
+	}
+
 	c.JSON(http.StatusCreated, t)
 }
 
@@ -89,6 +105,10 @@ func handleGet(c *gin.Context, svc *Service) {
 // @Failure 400 {object} map[string]string
 // @Router /todos/{id} [put]
 func handleUpdate(c *gin.Context, svc *Service) {
+	handleUpdateWithBroadcast(c, svc, nil)
+}
+
+func handleUpdateWithBroadcast(c *gin.Context, svc *Service, hub *Hub) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	var t Todo
 	if err := c.ShouldBindJSON(&t); err != nil {
@@ -100,7 +120,17 @@ func handleUpdate(c *gin.Context, svc *Service) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, t)
+
+	// Get updated todo to broadcast complete state and return accurate data
+	updated, err := svc.Get(id)
+	if err == nil {
+		if hub != nil {
+			hub.BroadcastUpdate(updated)
+		}
+		c.JSON(http.StatusOK, updated)
+	} else {
+		c.JSON(http.StatusOK, t)
+	}
 }
 
 // @Summary Delete todo
@@ -111,10 +141,20 @@ func handleUpdate(c *gin.Context, svc *Service) {
 // @Failure 404 {object} map[string]string
 // @Router /todos/{id} [delete]
 func handleDelete(c *gin.Context, svc *Service) {
+	handleDeleteWithBroadcast(c, svc, nil)
+}
+
+func handleDeleteWithBroadcast(c *gin.Context, svc *Service, hub *Hub) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err := svc.Delete(id); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Broadcast delete event if hub is available
+	if hub != nil {
+		hub.BroadcastDelete(id)
+	}
+
 	c.Status(http.StatusNoContent)
 }

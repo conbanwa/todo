@@ -49,6 +49,10 @@ func main() {
 
 	svc := todo.NewService(store)
 
+	// Initialize WebSocket hub
+	hub := todo.NewHub()
+	go hub.Run()
+
 	r := gin.Default()
 
 	// update swagger host to match runtime
@@ -60,21 +64,37 @@ func main() {
 	// swagger UI at /swagger/index.html and /swagger/*any
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, ginSwagger.URL("/docs/swagger.json")))
 
-	// register API routes
-	todo.RegisterRoutes(r, svc)
+	// serve static files (HTML, CSS, JS)
+	r.Static("/static", "./static")
+
+	// serve index.html at root
+	r.GET("/", func(c *gin.Context) {
+		c.File("./static/index.html")
+	})
+
+	// register WebSocket route
+	r.GET("/ws", func(c *gin.Context) {
+		todo.HandleWebSocket(c, hub)
+	})
+
+	// register API routes with WebSocket broadcasting
+	todo.RegisterRoutesWithHub(r, svc, hub)
 
 	// Graceful shutdown handling
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-	log.Printf("starting server on %s", addr)
-	if err := r.Run(addr); err != nil {
-		log.Fatalf("server exited: %v", err)
-	}
+		log.Printf("starting server on %s", addr)
+		if err := r.Run(addr); err != nil {
+			log.Fatalf("server exited: %v", err)
+		}
 	}()
 
 	// Wait for interrupt signal
 	<-sigChan
 	log.Println("shutting down server...")
+
+	// Close WebSocket hub gracefully
+	hub.Close()
 }
