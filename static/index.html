@@ -393,8 +393,8 @@
     <div class="realtime-indicator" id="realtimeIndicator">Real-time update received!</div>
 
     <script>
-        const API_BASE = '';
-        const WS_URL = `ws://${window.location.host}/ws`;
+        const API_BASE = 'http://localhost:8080';
+        const WS_URL = `ws://localhost:8080/ws`;
         
         let ws = null;
         let todos = [];
