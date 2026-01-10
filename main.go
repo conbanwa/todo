@@ -86,6 +86,15 @@ func main() {
 
 	go func() {
 		log.Printf("starting server on %s", addr)
+		log.Printf("swagger docs at \n\n http://localhost:8080/swagger/index.html\n\n")
+		// CURRENT_DIR/static/index.html
+		currentDir, err := os.Getwd()
+		// log.Printf("current directory: %s", currentDir)
+		if err != nil {
+			log.Fatalf("failed to get current directory: %v", err)
+		}
+		log.Printf("demo page at \n\n file:///%s/static/index.html\n\n", currentDir)
+
 		if err := r.Run(addr); err != nil {
 			log.Fatalf("server exited: %v", err)
 		}

@@ -1,3 +1,27 @@
+# TODO list online
+
+- Start the server locally:
+
+```bash
+go run main.go
+```
+
+## Serving local demo page
+
+-"msedge.exe" --disable-web-security --user-data-dir="C:\EdgeDevSession"
+
+Starts Microsoft Edge (msedge.exe)
+Disables Same-Origin Policy (--disable-web-security)
+
+- Open `file://project_dir/static/index.html` in your browser (recommend open 2 pages simultaneously to check updates by websocket)
+
+## Serving API docs locally
+
+- Open the Swagger UI at: `http://localhost:8080/swagger/index.html` which loads the bundled OpenAPI JSON at `/docs/swagger.json`.
+
+To generate richer OpenAPI docs from code annotations, install `swag` (https://github.com/swaggo/swag) and run `swag init` in the project root; update the generated `docs` package or replace `docs/swagger.json` with the generated output.
+
+
 # Collaborative Document System Architecture
 
 ## High-Level Architecture Diagram
@@ -122,15 +146,3 @@ API endpoints:
 - `DELETE /todos/{id}` — delete
 
 CI: see `.github/workflows/go.yml` which runs `go build` and `go test ./...`.
-
-Serving API docs locally
-
-- Start the server locally:
-
-```bash
-go run ./
-```
-
-- Open the Swagger UI at: `http://localhost:8080/swagger/index.html` which loads the bundled OpenAPI JSON at `/docs/swagger.json`.
-
-To generate richer OpenAPI docs from code annotations, install `swag` (https://github.com/swaggo/swag) and run `swag init` in the project root; update the generated `docs` package or replace `docs/swagger.json` with the generated output.
