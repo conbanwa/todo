@@ -17,8 +17,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	docs "github.com/conbanwa/todo/docs"
-	"github.com/conbanwa/todo/internal/todo"
+	"github.com/conbanwa/todo/docs"
+	"github.com/conbanwa/todo/internal/dao/cache/api"
+	"github.com/conbanwa/todo/internal/dao/db"
+	"github.com/conbanwa/todo/internal/transport"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -37,7 +39,7 @@ func main() {
 	}
 
 	// Initialize SQLite store
-	store, err := todo.NewSQLiteStore(dbPath)
+	store, err := db.NewSQLiteStore(dbPath)
 	if err != nil {
 		log.Fatalf("failed to initialize SQLite store: %v", err)
 	}
@@ -47,10 +49,10 @@ func main() {
 		}
 	}()
 
-	svc := todo.NewService(store)
+	svc := api.NewService(store)
 
 	// Initialize WebSocket hub
-	hub := todo.NewHub()
+	hub := transport.NewHub()
 	go hub.Run()
 
 	r := gin.Default()
@@ -74,11 +76,11 @@ func main() {
 
 	// register WebSocket route
 	r.GET("/ws", func(c *gin.Context) {
-		todo.HandleWebSocket(c, hub)
+		transport.HandleWebSocket(c, hub)
 	})
 
 	// register API routes with WebSocket broadcasting
-	todo.RegisterRoutesWithHub(r, svc, hub)
+	transport.RegisterRoutesWithHub(r, svc, hub)
 
 	// Graceful shutdown handling
 	sigChan := make(chan os.Signal, 1)

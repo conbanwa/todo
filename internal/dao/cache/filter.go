@@ -1,11 +1,15 @@
-package todo
+package cache
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/conbanwa/todo/internal/model"
+)
 
 // FilterAndSort filters the provided todos according to opts.Status and
 // sorts them according to opts.SortBy and opts.SortOrder.
-func FilterAndSort(in []Todo, opts ListOptions) []Todo {
-	out := make([]Todo, 0, len(in))
+func FilterAndSort(in []model.Todo, opts ListOptions) []model.Todo {
+	out := make([]model.Todo, 0, len(in))
 	for _, v := range in {
 		if opts.Status != "" && v.Status != opts.Status {
 			continue

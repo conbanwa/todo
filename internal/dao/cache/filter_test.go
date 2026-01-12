@@ -1,8 +1,10 @@
-package todo
+package cache
 
 import (
 	"testing"
 	"time"
+
+	"github.com/conbanwa/todo/internal/model"
 )
 
 func TestFilterAndSort_StatusAndSort(t *testing.T) {
@@ -11,14 +13,14 @@ func TestFilterAndSort_StatusAndSort(t *testing.T) {
 	t2 := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
 	t3 := time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC)
 
-	items := []Todo{
-		{ID: 1, Name: "alpha", DueDate: t2, Status: InProgress},
-		{ID: 2, Name: "bravo", DueDate: t1, Status: NotStarted},
-		{ID: 3, Name: "charlie", DueDate: t3, Status: Completed},
+	items := []model.Todo{
+		{ID: 1, Name: "alpha", DueDate: t2, Status: model.InProgress},
+		{ID: 2, Name: "bravo", DueDate: t1, Status: model.NotStarted},
+		{ID: 3, Name: "charlie", DueDate: t3, Status: model.Completed},
 	}
 
 	// filter by status
-	got := FilterAndSort(items, ListOptions{Status: NotStarted})
+	got := FilterAndSort(items, ListOptions{Status: model.NotStarted})
 	if len(got) != 1 || got[0].Name != "bravo" {
 		t.Fatalf("expected only bravo, got: %v", got)
 	}

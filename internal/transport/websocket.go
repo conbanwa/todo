@@ -1,4 +1,4 @@
-package todo
+package transport
 
 import (
 	"log"
@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/conbanwa/todo/internal/model"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -20,9 +21,9 @@ var upgrader = websocket.Upgrader{
 
 // WSMessage represents a WebSocket message
 type WSMessage struct {
-	Type      string    `json:"type"` // "create", "update", "delete"
-	Payload   Todo      `json:"payload"`
-	Timestamp time.Time `json:"timestamp,omitempty"`
+	Type      string     `json:"type"` // "create", "update", "delete"
+	Payload   model.Todo `json:"payload"`
+	Timestamp time.Time  `json:"timestamp,omitempty"`
 }
 
 // Client represents a WebSocket connection
@@ -199,7 +200,7 @@ func HandleWebSocket(c *gin.Context, hub *Hub) {
 }
 
 // BroadcastCreate broadcasts a create event
-func (h *Hub) BroadcastCreate(todo *Todo) {
+func (h *Hub) BroadcastCreate(todo *model.Todo) {
 	h.Broadcast(WSMessage{
 		Type:    "create",
 		Payload: *todo,
@@ -207,7 +208,7 @@ func (h *Hub) BroadcastCreate(todo *Todo) {
 }
 
 // BroadcastUpdate broadcasts an update event
-func (h *Hub) BroadcastUpdate(todo *Todo) {
+func (h *Hub) BroadcastUpdate(todo *model.Todo) {
 	h.Broadcast(WSMessage{
 		Type:    "update",
 		Payload: *todo,
@@ -218,6 +219,6 @@ func (h *Hub) BroadcastUpdate(todo *Todo) {
 func (h *Hub) BroadcastDelete(id int64) {
 	h.Broadcast(WSMessage{
 		Type:    "delete",
-		Payload: Todo{ID: id},
+		Payload: model.Todo{ID: id},
 	})
 }

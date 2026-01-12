@@ -1,10 +1,13 @@
-package todo
+package db
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/conbanwa/todo/internal/dao/cache"
+	todo2 "github.com/conbanwa/todo/internal/model"
 )
 
 // setupTestDB creates a temporary database for testing
@@ -34,11 +37,11 @@ func TestSQLiteStore_CreateGetUpdateDelete_List(t *testing.T) {
 	defer cleanup()
 
 	// Create
-	todo := &Todo{
+	todo := &todo2.Todo{
 		Name:        "task1",
 		Description: "First task",
 		DueDate:     time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC),
-		Status:      NotStarted,
+		Status:      todo2.NotStarted,
 		Priority:    5,
 		Tags:        []string{"work", "urgent"},
 	}
@@ -68,7 +71,7 @@ func TestSQLiteStore_CreateGetUpdateDelete_List(t *testing.T) {
 	if !got.DueDate.Equal(time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)) {
 		t.Errorf("expected due date 2026-01-15 10:00:00, got %v", got.DueDate)
 	}
-	if got.Status != NotStarted {
+	if got.Status != todo2.NotStarted {
 		t.Errorf("expected status NotStarted, got %q", got.Status)
 	}
 	if got.Priority != 5 {
@@ -83,7 +86,7 @@ func TestSQLiteStore_CreateGetUpdateDelete_List(t *testing.T) {
 
 	// Update
 	got.Description = "updated"
-	got.Status = InProgress
+	got.Status = todo2.InProgress
 	if err := store.Update(got); err != nil {
 		t.Fatalf("update failed: %v", err)
 	}
@@ -96,7 +99,7 @@ func TestSQLiteStore_CreateGetUpdateDelete_List(t *testing.T) {
 	if updated.Description != "updated" {
 		t.Errorf("expected updated description 'updated', got %q", updated.Description)
 	}
-	if updated.Status != InProgress {
+	if updated.Status != todo2.InProgress {
 		t.Errorf("expected updated status InProgress, got %q", updated.Status)
 	}
 
@@ -107,12 +110,12 @@ func TestSQLiteStore_CreateGetUpdateDelete_List(t *testing.T) {
 
 	// Verify deletion
 	_, err = store.Get(id)
-	if err != ErrNotFound {
+	if err != cache.ErrNotFound {
 		t.Errorf("expected ErrNotFound after delete, got %v", err)
 	}
 
 	// List (should be empty)
-	list, err := store.List(ListOptions{})
+	list, err := store.List(cache.ListOptions{})
 	if err != nil {
 		t.Fatalf("list failed: %v", err)
 	}
@@ -131,24 +134,24 @@ func TestSQLiteStore_ListOptions_SortAndFilter(t *testing.T) {
 	t2 := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
 	t3 := time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC)
 
-	_, _ = store.Create(&Todo{Name: "alpha", DueDate: t2, Status: InProgress})
-	id2, _ := store.Create(&Todo{Name: "bravo", DueDate: t1, Status: NotStarted})
-	_, _ = store.Create(&Todo{Name: "charlie", DueDate: t3, Status: Completed})
+	_, _ = store.Create(&todo2.Todo{Name: "alpha", DueDate: t2, Status: todo2.InProgress})
+	id2, _ := store.Create(&todo2.Todo{Name: "bravo", DueDate: t1, Status: todo2.NotStarted})
+	_, _ = store.Create(&todo2.Todo{Name: "charlie", DueDate: t3, Status: todo2.Completed})
 
 	// filter by status
-	list, err := store.List(ListOptions{Status: NotStarted})
+	list, err := store.List(cache.ListOptions{Status: todo2.NotStarted})
 	if err != nil {
 		t.Fatalf("list failed: %v", err)
 	}
 	if len(list) != 1 {
-		t.Fatalf("expected 1 todo with NotStarted status, got %d", len(list))
+		t.Fatalf("expected 1 api with NotStarted status, got %d", len(list))
 	}
 	if list[0].ID != id2 || list[0].Name != "bravo" {
 		t.Fatalf("expected only bravo (id=%d), got: id=%d name=%s", id2, list[0].ID, list[0].Name)
 	}
 
 	// sort by due_date asc
-	list, err = store.List(ListOptions{SortBy: "due_date", SortOrder: "asc"})
+	list, err = store.List(cache.ListOptions{SortBy: "due_date", SortOrder: "asc"})
 	if err != nil {
 		t.Fatalf("list failed: %v", err)
 	}
@@ -160,7 +163,7 @@ func TestSQLiteStore_ListOptions_SortAndFilter(t *testing.T) {
 	}
 
 	// sort by due_date desc
-	list, err = store.List(ListOptions{SortBy: "due_date", SortOrder: "desc"})
+	list, err = store.List(cache.ListOptions{SortBy: "due_date", SortOrder: "desc"})
 	if err != nil {
 		t.Fatalf("list failed: %v", err)
 	}
@@ -169,7 +172,7 @@ func TestSQLiteStore_ListOptions_SortAndFilter(t *testing.T) {
 	}
 
 	// sort by name asc
-	list, err = store.List(ListOptions{SortBy: "name", SortOrder: "asc"})
+	list, err = store.List(cache.ListOptions{SortBy: "name", SortOrder: "asc"})
 	if err != nil {
 		t.Fatalf("list failed: %v", err)
 	}
@@ -178,7 +181,7 @@ func TestSQLiteStore_ListOptions_SortAndFilter(t *testing.T) {
 	}
 
 	// sort by status asc
-	list, err = store.List(ListOptions{SortBy: "status", SortOrder: "asc"})
+	list, err = store.List(cache.ListOptions{SortBy: "status", SortOrder: "asc"})
 	if err != nil {
 		t.Fatalf("list failed: %v", err)
 	}
@@ -186,8 +189,8 @@ func TestSQLiteStore_ListOptions_SortAndFilter(t *testing.T) {
 		t.Fatalf("expected 3 items for status sort, got %d", len(list))
 	}
 	// Status should be sorted: Completed, InProgress, NotStarted (alphabetically)
-	if list[0].Status != Completed || list[1].Status != InProgress || list[2].Status != NotStarted {
-		t.Errorf("unexpected status sort order: %v", []Status{list[0].Status, list[1].Status, list[2].Status})
+	if list[0].Status != todo2.Completed || list[1].Status != todo2.InProgress || list[2].Status != todo2.NotStarted {
+		t.Errorf("unexpected status sort order: %v", []todo2.Status{list[0].Status, list[1].Status, list[2].Status})
 	}
 }
 
@@ -196,8 +199,8 @@ func TestSQLiteStore_Create_EdgeCases(t *testing.T) {
 	store, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	t.Run("creates todo with default status when empty", func(t *testing.T) {
-		todo := &Todo{Name: "Test Todo"}
+	t.Run("creates api with default status when empty", func(t *testing.T) {
+		todo := &todo2.Todo{Name: "Test Todo"}
 		id, err := store.Create(todo)
 		if err != nil {
 			t.Fatalf("create failed: %v", err)
@@ -208,13 +211,13 @@ func TestSQLiteStore_Create_EdgeCases(t *testing.T) {
 			t.Fatalf("get failed: %v", err)
 		}
 
-		if got.Status != NotStarted {
+		if got.Status != todo2.NotStarted {
 			t.Errorf("expected default status NotStarted, got %q", got.Status)
 		}
 	})
 
-	t.Run("creates todo without due date", func(t *testing.T) {
-		todo := &Todo{Name: "No Due Date"}
+	t.Run("creates api without due date", func(t *testing.T) {
+		todo := &todo2.Todo{Name: "No Due Date"}
 		id, err := store.Create(todo)
 		if err != nil {
 			t.Fatalf("create failed: %v", err)
@@ -230,8 +233,8 @@ func TestSQLiteStore_Create_EdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("creates todo with empty tags", func(t *testing.T) {
-		todo := &Todo{Name: "Empty Tags", Tags: []string{}}
+	t.Run("creates api with empty tags", func(t *testing.T) {
+		todo := &todo2.Todo{Name: "Empty Tags", Tags: []string{}}
 		id, err := store.Create(todo)
 		if err != nil {
 			t.Fatalf("create failed: %v", err)
@@ -247,8 +250,8 @@ func TestSQLiteStore_Create_EdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("creates todo with nil tags", func(t *testing.T) {
-		todo := &Todo{Name: "Nil Tags", Tags: nil}
+	t.Run("creates api with nil tags", func(t *testing.T) {
+		todo := &todo2.Todo{Name: "Nil Tags", Tags: nil}
 		id, err := store.Create(todo)
 		if err != nil {
 			t.Fatalf("create failed: %v", err)
@@ -266,17 +269,17 @@ func TestSQLiteStore_Create_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("creates multiple todos with sequential IDs", func(t *testing.T) {
-		id1, err := store.Create(&Todo{Name: "Todo 1"})
+		id1, err := store.Create(&todo2.Todo{Name: "Todo 1"})
 		if err != nil {
 			t.Fatalf("create 1 failed: %v", err)
 		}
 
-		id2, err := store.Create(&Todo{Name: "Todo 2"})
+		id2, err := store.Create(&todo2.Todo{Name: "Todo 2"})
 		if err != nil {
 			t.Fatalf("create 2 failed: %v", err)
 		}
 
-		id3, err := store.Create(&Todo{Name: "Todo 3"})
+		id3, err := store.Create(&todo2.Todo{Name: "Todo 3"})
 		if err != nil {
 			t.Fatalf("create 3 failed: %v", err)
 		}
@@ -295,16 +298,16 @@ func TestSQLiteStore_Get_EdgeCases(t *testing.T) {
 	store, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	t.Run("returns ErrNotFound for non-existent todo", func(t *testing.T) {
+	t.Run("returns ErrNotFound for non-existent api", func(t *testing.T) {
 		_, err := store.Get(999)
-		if err != ErrNotFound {
+		if err != cache.ErrNotFound {
 			t.Errorf("expected ErrNotFound, got %v", err)
 		}
 	})
 
-	t.Run("gets todo with complex tags", func(t *testing.T) {
+	t.Run("gets api with complex tags", func(t *testing.T) {
 		tags := []string{"tag1", "tag with spaces", "tag-with-dashes", "tag_with_underscores"}
-		todo := &Todo{
+		todo := &todo2.Todo{
 			Name: "Complex Tags",
 			Tags: tags,
 		}
@@ -336,10 +339,10 @@ func TestSQLiteStore_Update_EdgeCases(t *testing.T) {
 	defer cleanup()
 
 	t.Run("updates all fields", func(t *testing.T) {
-		original := &Todo{
+		original := &todo2.Todo{
 			Name:        "Original",
 			Description: "Original Description",
-			Status:      NotStarted,
+			Status:      todo2.NotStarted,
 			Priority:    1,
 			Tags:        []string{"old"},
 		}
@@ -349,12 +352,12 @@ func TestSQLiteStore_Update_EdgeCases(t *testing.T) {
 			t.Fatalf("create failed: %v", err)
 		}
 
-		updated := &Todo{
+		updated := &todo2.Todo{
 			ID:          id,
 			Name:        "Updated",
 			Description: "Updated Description",
 			DueDate:     time.Date(2026, 12, 31, 23, 59, 0, 0, time.UTC),
-			Status:      Completed,
+			Status:      todo2.Completed,
 			Priority:    10,
 			Tags:        []string{"new", "updated"},
 		}
@@ -389,17 +392,17 @@ func TestSQLiteStore_Update_EdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("returns ErrNotFound for non-existent todo", func(t *testing.T) {
-		todo := &Todo{ID: 999, Name: "Non-existent"}
+	t.Run("returns ErrNotFound for non-existent api", func(t *testing.T) {
+		todo := &todo2.Todo{ID: 999, Name: "Non-existent"}
 		err := store.Update(todo)
-		if err != ErrNotFound {
+		if err != cache.ErrNotFound {
 			t.Errorf("expected ErrNotFound, got %v", err)
 		}
 	})
 
-	t.Run("updates todo to have empty due date", func(t *testing.T) {
+	t.Run("updates api to have empty due date", func(t *testing.T) {
 		dueDate := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-		todo := &Todo{Name: "With Date", DueDate: dueDate}
+		todo := &todo2.Todo{Name: "With Date", DueDate: dueDate}
 
 		id, err := store.Create(todo)
 		if err != nil {
@@ -407,7 +410,7 @@ func TestSQLiteStore_Update_EdgeCases(t *testing.T) {
 		}
 
 		// Update to remove due date
-		updated := &Todo{ID: id, Name: "Without Date", DueDate: time.Time{}}
+		updated := &todo2.Todo{ID: id, Name: "Without Date", DueDate: time.Time{}}
 		err = store.Update(updated)
 		if err != nil {
 			t.Fatalf("update failed: %v", err)
@@ -430,17 +433,17 @@ func TestSQLiteStore_Delete_EdgeCases(t *testing.T) {
 	store, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	t.Run("returns ErrNotFound for non-existent todo", func(t *testing.T) {
+	t.Run("returns ErrNotFound for non-existent api", func(t *testing.T) {
 		err := store.Delete(999)
-		if err != ErrNotFound {
+		if err != cache.ErrNotFound {
 			t.Errorf("expected ErrNotFound, got %v", err)
 		}
 	})
 
 	t.Run("can delete multiple todos", func(t *testing.T) {
-		id1, _ := store.Create(&Todo{Name: "Todo 1"})
-		id2, _ := store.Create(&Todo{Name: "Todo 2"})
-		id3, _ := store.Create(&Todo{Name: "Todo 3"})
+		id1, _ := store.Create(&todo2.Todo{Name: "Todo 1"})
+		id2, _ := store.Create(&todo2.Todo{Name: "Todo 2"})
+		id3, _ := store.Create(&todo2.Todo{Name: "Todo 3"})
 
 		// Delete middle one
 		if err := store.Delete(id2); err != nil {
@@ -449,15 +452,15 @@ func TestSQLiteStore_Delete_EdgeCases(t *testing.T) {
 
 		// Verify others still exist
 		if _, err := store.Get(id1); err != nil {
-			t.Errorf("todo 1 should still exist: %v", err)
+			t.Errorf("api 1 should still exist: %v", err)
 		}
 		if _, err := store.Get(id3); err != nil {
-			t.Errorf("todo 3 should still exist: %v", err)
+			t.Errorf("api 3 should still exist: %v", err)
 		}
 
 		// Verify deleted one is gone
-		if _, err := store.Get(id2); err != ErrNotFound {
-			t.Errorf("todo 2 should be deleted, got: %v", err)
+		if _, err := store.Get(id2); err != cache.ErrNotFound {
+			t.Errorf("api 2 should be deleted, got: %v", err)
 		}
 	})
 }
@@ -473,10 +476,10 @@ func TestSQLiteStore_Persistence(t *testing.T) {
 		t.Fatalf("failed to create first store: %v", err)
 	}
 
-	id, err := store1.Create(&Todo{
+	id, err := store1.Create(&todo2.Todo{
 		Name:        "Persistent Todo",
 		Description: "This should persist",
-		Status:      Completed,
+		Status:      todo2.Completed,
 	})
 	if err != nil {
 		t.Fatalf("create failed: %v", err)
@@ -503,8 +506,8 @@ func TestSQLiteStore_Persistence(t *testing.T) {
 	if got.Description != "This should persist" {
 		t.Errorf("expected description %q, got %q", "This should persist", got.Description)
 	}
-	if got.Status != Completed {
-		t.Errorf("expected status %q, got %q", Completed, got.Status)
+	if got.Status != todo2.Completed {
+		t.Errorf("expected status %q, got %q", todo2.Completed, got.Status)
 	}
 }
 
@@ -519,7 +522,7 @@ func TestSQLiteStore_Close(t *testing.T) {
 		}
 
 		// Attempting to use closed store should fail
-		_, err = store.Create(&Todo{Name: "Should Fail"})
+		_, err = store.Create(&todo2.Todo{Name: "Should Fail"})
 		if err == nil {
 			t.Fatal("expected error when using closed store")
 		}

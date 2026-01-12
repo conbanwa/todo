@@ -1,4 +1,4 @@
-package todo
+package transport
 
 import (
 	"bytes"
@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/conbanwa/todo/internal/dao/cache/api"
+	"github.com/conbanwa/todo/internal/model"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -17,7 +19,7 @@ func TestGinHandler_WebSocketIntegration_Create(t *testing.T) {
 	defer hub.Close()
 	go hub.Run()
 
-	svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	RegisterRoutesWithHub(r, svc, hub)
@@ -40,8 +42,8 @@ func TestGinHandler_WebSocketIntegration_Create(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	// Create todo via REST API
-	todo := Todo{Name: "WebSocket Test", Description: "Testing broadcast"}
+	// Create api via REST API
+	todo := model.Todo{Name: "WebSocket Test", Description: "Testing broadcast"}
 	body, _ := json.Marshal(todo)
 
 	req := httptest.NewRequest(http.MethodPost, "/todos", bytes.NewReader(body))
@@ -73,9 +75,9 @@ func TestGinHandler_WebSocketIntegration_Update(t *testing.T) {
 	defer hub.Close()
 	go hub.Run()
 
-	store := &mockStore{todos: make(map[int64]*Todo)}
-	store.todos[1] = &Todo{ID: 1, Name: "Original", Status: NotStarted}
-	svc := NewService(store)
+	store := &mockStore{todos: make(map[int64]*model.Todo)}
+	store.todos[1] = &model.Todo{ID: 1, Name: "Original", Status: model.NotStarted}
+	svc := api.NewService(store)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	RegisterRoutesWithHub(r, svc, hub)
@@ -96,8 +98,8 @@ func TestGinHandler_WebSocketIntegration_Update(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	// Update todo via REST API
-	update := Todo{Name: "Updated", Status: Completed}
+	// Update api via REST API
+	update := model.Todo{Name: "Updated", Status: model.Completed}
 	body, _ := json.Marshal(update)
 
 	req := httptest.NewRequest(http.MethodPut, "/todos/1", bytes.NewReader(body))
@@ -132,9 +134,9 @@ func TestGinHandler_WebSocketIntegration_Delete(t *testing.T) {
 	defer hub.Close()
 	go hub.Run()
 
-	store := &mockStore{todos: make(map[int64]*Todo)}
-	store.todos[1] = &Todo{ID: 1, Name: "To Delete"}
-	svc := NewService(store)
+	store := &mockStore{todos: make(map[int64]*model.Todo)}
+	store.todos[1] = &model.Todo{ID: 1, Name: "To Delete"}
+	svc := api.NewService(store)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	RegisterRoutesWithHub(r, svc, hub)
@@ -155,7 +157,7 @@ func TestGinHandler_WebSocketIntegration_Delete(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	// Delete todo via REST API
+	// Delete api via REST API
 	req := httptest.NewRequest(http.MethodDelete, "/todos/1", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -184,7 +186,7 @@ func TestGinHandler_WebSocketIntegration_MultipleClients(t *testing.T) {
 	defer hub.Close()
 	go hub.Run()
 
-	svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	RegisterRoutesWithHub(r, svc, hub)
@@ -213,8 +215,8 @@ func TestGinHandler_WebSocketIntegration_MultipleClients(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	// Create todo via REST API
-	todo := Todo{Name: "Multi-Client Test"}
+	// Create api via REST API
+	todo := model.Todo{Name: "Multi-Client Test"}
 	body, _ := json.Marshal(todo)
 
 	req := httptest.NewRequest(http.MethodPost, "/todos", bytes.NewReader(body))

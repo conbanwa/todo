@@ -1,4 +1,4 @@
-package todo
+package transport
 
 import (
 	"bytes"
@@ -12,6 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/conbanwa/todo/internal/dao/cache/api"
+	"github.com/conbanwa/todo/internal/dao/db"
+	"github.com/conbanwa/todo/internal/model"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -20,13 +23,13 @@ func TestFullWorkflow_RESTAndWebSocket(t *testing.T) {
 	// Setup test database
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "integration_test.db")
-	store, err := NewSQLiteStore(dbPath)
+	store, err := db.NewSQLiteStore(dbPath)
 	if err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 	defer store.Close()
 
-	svc := NewService(store)
+	svc := api.NewService(store)
 	hub := NewHub()
 	defer hub.Close()
 	go hub.Run()
@@ -52,13 +55,13 @@ func TestFullWorkflow_RESTAndWebSocket(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	// Step 1: Create todo via REST API
-	todo1 := Todo{Name: "Integration Test 1", Status: NotStarted, Description: "Test description"}
+	// Step 1: Create api via REST API
+	todo1 := model.Todo{Name: "Integration Test 1", Status: model.NotStarted, Description: "Test description"}
 	body1, _ := json.Marshal(todo1)
 
 	resp1, err := http.Post(s.URL+"/todos", "application/json", bytes.NewReader(body1))
 	if err != nil {
-		t.Fatalf("failed to create todo: %v", err)
+		t.Fatalf("failed to create api: %v", err)
 	}
 	defer resp1.Body.Close()
 
@@ -66,7 +69,7 @@ func TestFullWorkflow_RESTAndWebSocket(t *testing.T) {
 		t.Fatalf("expected status 201, got %d", resp1.StatusCode)
 	}
 
-	var created1 Todo
+	var created1 model.Todo
 	json.NewDecoder(resp1.Body).Decode(&created1)
 
 	// Step 2: Verify WebSocket broadcast received
@@ -83,15 +86,15 @@ func TestFullWorkflow_RESTAndWebSocket(t *testing.T) {
 		t.Errorf("expected ID %d, got %d", created1.ID, wsMsg1.Payload.ID)
 	}
 
-	// Step 3: Update todo via REST API
-	todo2 := Todo{Name: "Updated Integration Test", Status: InProgress}
+	// Step 3: Update api via REST API
+	todo2 := model.Todo{Name: "Updated Integration Test", Status: model.InProgress}
 	body2, _ := json.Marshal(todo2)
 
 	req2, _ := http.NewRequest(http.MethodPut, s.URL+"/todos/"+int64ToString(created1.ID), bytes.NewReader(body2))
 	req2.Header.Set("Content-Type", "application/json")
 	resp2, err := http.DefaultClient.Do(req2)
 	if err != nil {
-		t.Fatalf("failed to update todo: %v", err)
+		t.Fatalf("failed to update api: %v", err)
 	}
 	defer resp2.Body.Close()
 
@@ -113,11 +116,11 @@ func TestFullWorkflow_RESTAndWebSocket(t *testing.T) {
 		t.Errorf("expected ID %d, got %d", created1.ID, wsMsg2.Payload.ID)
 	}
 
-	// Step 5: Delete todo via REST API
+	// Step 5: Delete api via REST API
 	req3, _ := http.NewRequest(http.MethodDelete, s.URL+"/todos/"+int64ToString(created1.ID), nil)
 	resp3, err := http.DefaultClient.Do(req3)
 	if err != nil {
-		t.Fatalf("failed to delete todo: %v", err)
+		t.Fatalf("failed to delete api: %v", err)
 	}
 	defer resp3.Body.Close()
 
@@ -143,13 +146,13 @@ func TestFullWorkflow_RESTAndWebSocket(t *testing.T) {
 func TestMultipleClients_RealTimeSync(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "sync_test.db")
-	store, err := NewSQLiteStore(dbPath)
+	store, err := db.NewSQLiteStore(dbPath)
 	if err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 	defer store.Close()
 
-	svc := NewService(store)
+	svc := api.NewService(store)
 	hub := NewHub()
 	defer hub.Close()
 	go hub.Run()
@@ -181,13 +184,13 @@ func TestMultipleClients_RealTimeSync(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	// Create todo via REST API
-	todo := Todo{Name: "Multi-Client Sync Test", Status: NotStarted}
+	// Create api via REST API
+	todo := model.Todo{Name: "Multi-Client Sync Test", Status: model.NotStarted}
 	body, _ := json.Marshal(todo)
 
 	resp, err := http.Post(s.URL+"/todos", "application/json", bytes.NewReader(body))
 	if err != nil {
-		t.Fatalf("failed to create todo: %v", err)
+		t.Fatalf("failed to create api: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -218,7 +221,7 @@ func TestWebSocketReconnect(t *testing.T) {
 	defer hub.Close()
 	go hub.Run()
 
-	svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	RegisterRoutesWithHub(r, svc, hub)
@@ -289,13 +292,13 @@ func TestHTMLFrontendIntegration(t *testing.T) {
 	testHTML := `<!DOCTYPE html><html><head><title>Todo App</title></head><body><h1>Todo List</h1></body></html>`
 	os.WriteFile(indexPath, []byte(testHTML), 0644)
 
-	store, err := NewSQLiteStore(filepath.Join(tmpDir, "test.db"))
+	store, err := db.NewSQLiteStore(filepath.Join(tmpDir, "test.db"))
 	if err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 	defer store.Close()
 
-	svc := NewService(store)
+	svc := api.NewService(store)
 	hub := NewHub()
 	defer hub.Close()
 	go hub.Run()

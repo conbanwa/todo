@@ -1,4 +1,4 @@
-package todo
+package transport
 
 import (
 	"bytes"
@@ -7,11 +7,15 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/conbanwa/todo/internal/dao/cache"
+	"github.com/conbanwa/todo/internal/dao/cache/api"
+	"github.com/conbanwa/todo/internal/model"
 )
 
 func TestHandler_ServeHTTP(t *testing.T) {
 	t.Run("returns 404 for invalid path", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		handler := NewHandler(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/invalid", nil)
@@ -24,8 +28,8 @@ func TestHandler_ServeHTTP(t *testing.T) {
 	})
 
 	t.Run("routes to correct handler methods", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		svc := NewService(store)
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		svc := api.NewService(store)
 		handler := NewHandler(svc)
 
 		tests := []struct {
@@ -60,11 +64,11 @@ func TestHandler_ServeHTTP(t *testing.T) {
 }
 
 func TestHandler_handleCreate(t *testing.T) {
-	t.Run("creates todo successfully", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	t.Run("creates api successfully", func(t *testing.T) {
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		handler := NewHandler(svc)
 
-		todo := Todo{Name: "Test Todo", Description: "Test Description"}
+		todo := model.Todo{Name: "Test Todo", Description: "Test Description"}
 		body, _ := json.Marshal(todo)
 
 		req := httptest.NewRequest(http.MethodPost, "/todos", bytes.NewReader(body))
@@ -77,7 +81,7 @@ func TestHandler_handleCreate(t *testing.T) {
 			t.Errorf("expected status 201, got %d", w.Code)
 		}
 
-		var response Todo
+		var response model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -91,7 +95,7 @@ func TestHandler_handleCreate(t *testing.T) {
 	})
 
 	t.Run("parses due_date from string", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		handler := NewHandler(svc)
 
 		dueDate := time.Date(2026, 12, 31, 12, 0, 0, 0, time.UTC)
@@ -107,7 +111,7 @@ func TestHandler_handleCreate(t *testing.T) {
 			t.Errorf("expected status 201, got %d", w.Code)
 		}
 
-		var response Todo
+		var response model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -119,7 +123,7 @@ func TestHandler_handleCreate(t *testing.T) {
 	})
 
 	t.Run("returns 400 for invalid JSON", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		handler := NewHandler(svc)
 
 		req := httptest.NewRequest(http.MethodPost, "/todos", bytes.NewReader([]byte("invalid json")))
@@ -134,7 +138,7 @@ func TestHandler_handleCreate(t *testing.T) {
 	})
 
 	t.Run("returns 400 when service validation fails", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		handler := NewHandler(svc)
 
 		body := []byte(`{"name":""}`) // Empty name should fail validation
@@ -152,10 +156,10 @@ func TestHandler_handleCreate(t *testing.T) {
 }
 
 func TestHandler_handleGet(t *testing.T) {
-	t.Run("gets existing todo", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Test Todo", Status: InProgress}
-		svc := NewService(store)
+	t.Run("gets existing api", func(t *testing.T) {
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Test Todo", Status: model.InProgress}
+		svc := api.NewService(store)
 		handler := NewHandler(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos/1", nil)
@@ -167,7 +171,7 @@ func TestHandler_handleGet(t *testing.T) {
 			t.Errorf("expected status 200, got %d", w.Code)
 		}
 
-		var response Todo
+		var response model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -180,8 +184,8 @@ func TestHandler_handleGet(t *testing.T) {
 		}
 	})
 
-	t.Run("returns 404 for non-existent todo", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	t.Run("returns 404 for non-existent api", func(t *testing.T) {
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		handler := NewHandler(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos/999", nil)
@@ -196,13 +200,13 @@ func TestHandler_handleGet(t *testing.T) {
 }
 
 func TestHandler_handleUpdate(t *testing.T) {
-	t.Run("updates existing todo", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Original", Status: NotStarted}
-		svc := NewService(store)
+	t.Run("updates existing api", func(t *testing.T) {
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Original", Status: model.NotStarted}
+		svc := api.NewService(store)
 		handler := NewHandler(svc)
 
-		update := Todo{Name: "Updated", Description: "New Description", Status: Completed}
+		update := model.Todo{Name: "Updated", Description: "New Description", Status: model.Completed}
 		body, _ := json.Marshal(update)
 
 		req := httptest.NewRequest(http.MethodPut, "/todos/1", bytes.NewReader(body))
@@ -215,7 +219,7 @@ func TestHandler_handleUpdate(t *testing.T) {
 			t.Errorf("expected status 200, got %d", w.Code)
 		}
 
-		var response Todo
+		var response model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -229,9 +233,9 @@ func TestHandler_handleUpdate(t *testing.T) {
 	})
 
 	t.Run("returns 400 for invalid JSON", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Original"}
-		svc := NewService(store)
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Original"}
+		svc := api.NewService(store)
 		handler := NewHandler(svc)
 
 		req := httptest.NewRequest(http.MethodPut, "/todos/1", bytes.NewReader([]byte("invalid json")))
@@ -246,11 +250,11 @@ func TestHandler_handleUpdate(t *testing.T) {
 	})
 
 	t.Run("returns 400 when service validation fails", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		svc := NewService(store)
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		svc := api.NewService(store)
 		handler := NewHandler(svc)
 
-		body := []byte(`{"name":"Test"}`) // ID will be set to 1, but todo doesn't exist
+		body := []byte(`{"name":"Test"}`) // ID will be set to 1, but api doesn't exist
 
 		req := httptest.NewRequest(http.MethodPut, "/todos/1", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
@@ -265,10 +269,10 @@ func TestHandler_handleUpdate(t *testing.T) {
 }
 
 func TestHandler_handleDelete(t *testing.T) {
-	t.Run("deletes existing todo", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "To Delete"}
-		svc := NewService(store)
+	t.Run("deletes existing api", func(t *testing.T) {
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "To Delete"}
+		svc := api.NewService(store)
 		handler := NewHandler(svc)
 
 		req := httptest.NewRequest(http.MethodDelete, "/todos/1", nil)
@@ -282,13 +286,13 @@ func TestHandler_handleDelete(t *testing.T) {
 
 		// Verify it's deleted
 		_, err := svc.Get(1)
-		if err != ErrNotFound {
+		if err != cache.ErrNotFound {
 			t.Errorf("expected ErrNotFound after delete, got %v", err)
 		}
 	})
 
-	t.Run("returns 404 for non-existent todo", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	t.Run("returns 404 for non-existent api", func(t *testing.T) {
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		handler := NewHandler(svc)
 
 		req := httptest.NewRequest(http.MethodDelete, "/todos/999", nil)
@@ -304,10 +308,10 @@ func TestHandler_handleDelete(t *testing.T) {
 
 func TestHandler_handleList(t *testing.T) {
 	t.Run("lists all todos", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Todo 1", Status: NotStarted}
-		store.todos[2] = &Todo{ID: 2, Name: "Todo 2", Status: InProgress}
-		svc := NewService(store)
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Todo 1", Status: model.NotStarted}
+		store.todos[2] = &model.Todo{ID: 2, Name: "Todo 2", Status: model.InProgress}
+		svc := api.NewService(store)
 		handler := NewHandler(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos", nil)
@@ -319,7 +323,7 @@ func TestHandler_handleList(t *testing.T) {
 			t.Errorf("expected status 200, got %d", w.Code)
 		}
 
-		var response []Todo
+		var response []model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -330,11 +334,11 @@ func TestHandler_handleList(t *testing.T) {
 	})
 
 	t.Run("filters by status query parameter", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Todo 1", Status: NotStarted}
-		store.todos[2] = &Todo{ID: 2, Name: "Todo 2", Status: InProgress}
-		store.todos[3] = &Todo{ID: 3, Name: "Todo 3", Status: NotStarted}
-		svc := NewService(store)
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Todo 1", Status: model.NotStarted}
+		store.todos[2] = &model.Todo{ID: 2, Name: "Todo 2", Status: model.InProgress}
+		store.todos[3] = &model.Todo{ID: 3, Name: "Todo 3", Status: model.NotStarted}
+		svc := api.NewService(store)
 		handler := NewHandler(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos?status=not_started", nil)
@@ -346,7 +350,7 @@ func TestHandler_handleList(t *testing.T) {
 			t.Errorf("expected status 200, got %d", w.Code)
 		}
 
-		var response []Todo
+		var response []model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -355,18 +359,18 @@ func TestHandler_handleList(t *testing.T) {
 			t.Errorf("expected 2 todos, got %d", len(response))
 		}
 		for _, todo := range response {
-			if todo.Status != NotStarted {
+			if todo.Status != model.NotStarted {
 				t.Errorf("expected status NotStarted, got %q", todo.Status)
 			}
 		}
 	})
 
 	t.Run("sorts by query parameters", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Charlie"}
-		store.todos[2] = &Todo{ID: 2, Name: "Alpha"}
-		store.todos[3] = &Todo{ID: 3, Name: "Bravo"}
-		svc := NewService(store)
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Charlie"}
+		store.todos[2] = &model.Todo{ID: 2, Name: "Alpha"}
+		store.todos[3] = &model.Todo{ID: 3, Name: "Bravo"}
+		svc := api.NewService(store)
 		handler := NewHandler(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos?sort_by=name&order=asc", nil)
@@ -378,7 +382,7 @@ func TestHandler_handleList(t *testing.T) {
 			t.Errorf("expected status 200, got %d", w.Code)
 		}
 
-		var response []Todo
+		var response []model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -394,9 +398,9 @@ func TestHandler_handleList(t *testing.T) {
 
 func TestHandler_writeJSON(t *testing.T) {
 	t.Run("writes JSON with correct content type through handler", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Test"}
-		svc := NewService(store)
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Test"}
+		svc := api.NewService(store)
 		handler := NewHandler(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos/1", nil)
@@ -408,7 +412,7 @@ func TestHandler_writeJSON(t *testing.T) {
 			t.Errorf("expected Content-Type 'application/json', got %q", w.Header().Get("Content-Type"))
 		}
 
-		var response Todo
+		var response model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode JSON: %v", err)
 		}

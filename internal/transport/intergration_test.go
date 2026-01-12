@@ -1,4 +1,4 @@
-package todo
+package transport
 
 import (
 	"bytes"
@@ -11,17 +11,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/conbanwa/todo/internal/dao/cache/api"
+	"github.com/conbanwa/todo/internal/dao/db"
+	"github.com/conbanwa/todo/internal/model"
 	"github.com/gin-gonic/gin"
 )
 
 // setupIntegrationTestDB creates a temporary database for integration tests
 // Note: These tests require CGO_ENABLED=1 to work with SQLite
-func setupIntegrationTestDB(t *testing.T) (*SQLiteStore, func()) {
+func setupIntegrationTestDB(t *testing.T) (*db.SQLiteStore, func()) {
 	t.Helper()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "integration_test.db")
 
-	store, err := NewSQLiteStore(dbPath)
+	store, err := db.NewSQLiteStore(dbPath)
 	if err != nil {
 		// Skip test if CGO is not enabled or SQLite driver is not available
 		if err.Error() != "" && (contains(err.Error(), "cgo") || contains(err.Error(), "CGO_ENABLED")) {
@@ -56,17 +59,17 @@ func TestIntegration_CompleteWorkflow(t *testing.T) {
 	store, cleanup := setupIntegrationTestDB(t)
 	defer cleanup()
 
-	svc := NewService(store)
+	svc := api.NewService(store)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	RegisterRoutes(r, svc)
 
-	// Step 1: Create a todo
-	todo := Todo{
+	// Step 1: Create a api
+	todo := model.Todo{
 		Name:        "Integration Test Todo",
 		Description: "Testing complete workflow",
 		DueDate:     time.Date(2026, 12, 31, 12, 0, 0, 0, time.UTC),
-		Status:      NotStarted,
+		Status:      model.NotStarted,
 		Priority:    5,
 		Tags:        []string{"test", "integration"},
 	}
@@ -81,9 +84,9 @@ func TestIntegration_CompleteWorkflow(t *testing.T) {
 		t.Fatalf("expected status 201, got %d: %s", createW.Code, createW.Body.String())
 	}
 
-	var createdTodo Todo
+	var createdTodo model.Todo
 	if err := json.NewDecoder(createW.Body).Decode(&createdTodo); err != nil {
-		t.Fatalf("failed to decode created todo: %v", err)
+		t.Fatalf("failed to decode created api: %v", err)
 	}
 
 	if createdTodo.ID == 0 {
@@ -93,7 +96,7 @@ func TestIntegration_CompleteWorkflow(t *testing.T) {
 		t.Errorf("expected name %q, got %q", todo.Name, createdTodo.Name)
 	}
 
-	// Step 2: Get the created todo
+	// Step 2: Get the created api
 	getReq := httptest.NewRequest(http.MethodGet, "/todos/"+fmt.Sprintf("%d", createdTodo.ID), nil)
 	getW := httptest.NewRecorder()
 	r.ServeHTTP(getW, getReq)
@@ -102,9 +105,9 @@ func TestIntegration_CompleteWorkflow(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", getW.Code)
 	}
 
-	var retrievedTodo Todo
+	var retrievedTodo model.Todo
 	if err := json.NewDecoder(getW.Body).Decode(&retrievedTodo); err != nil {
-		t.Fatalf("failed to decode retrieved todo: %v", err)
+		t.Fatalf("failed to decode retrieved api: %v", err)
 	}
 
 	if retrievedTodo.ID != createdTodo.ID {
@@ -114,11 +117,11 @@ func TestIntegration_CompleteWorkflow(t *testing.T) {
 		t.Errorf("expected name %q, got %q", todo.Name, retrievedTodo.Name)
 	}
 
-	// Step 3: Update the todo
-	updatedTodo := Todo{
+	// Step 3: Update the api
+	updatedTodo := model.Todo{
 		Name:        "Updated Integration Test Todo",
 		Description: "Updated description",
-		Status:      InProgress,
+		Status:      model.InProgress,
 		Priority:    10,
 		Tags:        []string{"test", "integration", "updated"},
 	}
@@ -133,19 +136,19 @@ func TestIntegration_CompleteWorkflow(t *testing.T) {
 		t.Fatalf("expected status 200, got %d: %s", updateW.Code, updateW.Body.String())
 	}
 
-	var updatedResponse Todo
+	var updatedResponse model.Todo
 	if err := json.NewDecoder(updateW.Body).Decode(&updatedResponse); err != nil {
-		t.Fatalf("failed to decode updated todo: %v", err)
+		t.Fatalf("failed to decode updated api: %v", err)
 	}
 
 	if updatedResponse.Name != updatedTodo.Name {
 		t.Errorf("expected name %q, got %q", updatedTodo.Name, updatedResponse.Name)
 	}
-	if updatedResponse.Status != InProgress {
-		t.Errorf("expected status %q, got %q", InProgress, updatedResponse.Status)
+	if updatedResponse.Status != model.InProgress {
+		t.Errorf("expected status %q, got %q", model.InProgress, updatedResponse.Status)
 	}
 
-	// Step 4: List todos (should include our todo)
+	// Step 4: List todos (should include our api)
 	listReq := httptest.NewRequest(http.MethodGet, "/todos", nil)
 	listW := httptest.NewRecorder()
 	r.ServeHTTP(listW, listReq)
@@ -154,13 +157,13 @@ func TestIntegration_CompleteWorkflow(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", listW.Code)
 	}
 
-	var todos []Todo
+	var todos []model.Todo
 	if err := json.NewDecoder(listW.Body).Decode(&todos); err != nil {
 		t.Fatalf("failed to decode todos list: %v", err)
 	}
 
 	if len(todos) == 0 {
-		t.Fatal("expected at least one todo in list")
+		t.Fatal("expected at least one api in list")
 	}
 
 	found := false
@@ -174,10 +177,10 @@ func TestIntegration_CompleteWorkflow(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatal("created todo not found in list")
+		t.Fatal("created api not found in list")
 	}
 
-	// Step 5: Delete the todo
+	// Step 5: Delete the api
 	deleteReq := httptest.NewRequest(http.MethodDelete, "/todos/"+fmt.Sprintf("%d", createdTodo.ID), nil)
 	deleteW := httptest.NewRecorder()
 	r.ServeHTTP(deleteW, deleteReq)
@@ -201,17 +204,17 @@ func TestIntegration_MultipleTodos(t *testing.T) {
 	store, cleanup := setupIntegrationTestDB(t)
 	defer cleanup()
 
-	svc := NewService(store)
+	svc := api.NewService(store)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	RegisterRoutes(r, svc)
 
 	// Create multiple todos with different statuses
-	todos := []Todo{
-		{Name: "Todo 1", Status: NotStarted},
-		{Name: "Todo 2", Status: InProgress},
-		{Name: "Todo 3", Status: Completed},
-		{Name: "Todo 4", Status: NotStarted},
+	todos := []model.Todo{
+		{Name: "Todo 1", Status: model.NotStarted},
+		{Name: "Todo 2", Status: model.InProgress},
+		{Name: "Todo 3", Status: model.Completed},
+		{Name: "Todo 4", Status: model.NotStarted},
 	}
 
 	var createdIDs []int64
@@ -223,10 +226,10 @@ func TestIntegration_MultipleTodos(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		if w.Code != http.StatusCreated {
-			t.Fatalf("failed to create todo: got status %d", w.Code)
+			t.Fatalf("failed to create api: got status %d", w.Code)
 		}
 
-		var created Todo
+		var created model.Todo
 		json.NewDecoder(w.Body).Decode(&created)
 		createdIDs = append(createdIDs, created.ID)
 	}
@@ -240,7 +243,7 @@ func TestIntegration_MultipleTodos(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", filterW.Code)
 	}
 
-	var filteredTodos []Todo
+	var filteredTodos []model.Todo
 	json.NewDecoder(filterW.Body).Decode(&filteredTodos)
 
 	if len(filteredTodos) != 2 {
@@ -248,7 +251,7 @@ func TestIntegration_MultipleTodos(t *testing.T) {
 	}
 
 	for _, todo := range filteredTodos {
-		if todo.Status != NotStarted {
+		if todo.Status != model.NotStarted {
 			t.Errorf("expected status NotStarted, got %q", todo.Status)
 		}
 	}
@@ -262,7 +265,7 @@ func TestIntegration_MultipleTodos(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", sortW.Code)
 	}
 
-	var sortedTodos []Todo
+	var sortedTodos []model.Todo
 	json.NewDecoder(sortW.Body).Decode(&sortedTodos)
 
 	if len(sortedTodos) != 4 {
@@ -281,12 +284,12 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 	store, cleanup := setupIntegrationTestDB(t)
 	defer cleanup()
 
-	svc := NewService(store)
+	svc := api.NewService(store)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	RegisterRoutes(r, svc)
 
-	// Test creating todo with empty name
+	// Test creating api with empty name
 	emptyBody := []byte(`{"name":""}`)
 	req := httptest.NewRequest(http.MethodPost, "/todos", bytes.NewReader(emptyBody))
 	req.Header.Set("Content-Type", "application/json")
@@ -297,16 +300,16 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 		t.Errorf("expected status 400 for empty name, got %d", w.Code)
 	}
 
-	// Test getting non-existent todo
+	// Test getting non-existent api
 	getReq := httptest.NewRequest(http.MethodGet, "/todos/999", nil)
 	getW := httptest.NewRecorder()
 	r.ServeHTTP(getW, getReq)
 
 	if getW.Code != http.StatusNotFound {
-		t.Errorf("expected status 404 for non-existent todo, got %d", getW.Code)
+		t.Errorf("expected status 404 for non-existent api, got %d", getW.Code)
 	}
 
-	// Test updating non-existent todo
+	// Test updating non-existent api
 	updateBody := []byte(`{"name":"Updated"}`)
 	updateReq := httptest.NewRequest(http.MethodPut, "/todos/999", bytes.NewReader(updateBody))
 	updateReq.Header.Set("Content-Type", "application/json")
@@ -314,16 +317,16 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 	r.ServeHTTP(updateW, updateReq)
 
 	if updateW.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400 for updating non-existent todo, got %d", updateW.Code)
+		t.Errorf("expected status 400 for updating non-existent api, got %d", updateW.Code)
 	}
 
-	// Test deleting non-existent todo
+	// Test deleting non-existent api
 	deleteReq := httptest.NewRequest(http.MethodDelete, "/todos/999", nil)
 	deleteW := httptest.NewRecorder()
 	r.ServeHTTP(deleteW, deleteReq)
 
 	if deleteW.Code != http.StatusNotFound {
-		t.Errorf("expected status 404 for deleting non-existent todo, got %d", deleteW.Code)
+		t.Errorf("expected status 404 for deleting non-existent api, got %d", deleteW.Code)
 	}
 
 	// Test invalid JSON
@@ -338,7 +341,7 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 }
 
 // Helper functions
-func getTodoNames(todos []Todo) []string {
+func getTodoNames(todos []model.Todo) []string {
 	names := make([]string, len(todos))
 	for i, t := range todos {
 		names[i] = t.Name

@@ -1,14 +1,16 @@
-package todo
+package cache
 
 import (
 	"testing"
 	"time"
+
+	"github.com/conbanwa/todo/internal/model"
 )
 
 func TestInMemoryStore_CreateGetUpdateDelete_List(t *testing.T) {
 	s := NewInMemoryStore()
 
-	id, err := s.Create(&Todo{Name: "task1", DueDate: time.Now().Add(24 * time.Hour)})
+	id, err := s.Create(&model.Todo{Name: "task1", DueDate: time.Now().Add(24 * time.Hour)})
 	if err != nil {
 		t.Fatalf("create failed: %v", err)
 	}
@@ -42,12 +44,12 @@ func TestInMemoryStore_ListOptions_SortAndFilter(t *testing.T) {
 	t2 := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
 	t3 := time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC)
 
-	_, _ = s.Create(&Todo{Name: "alpha", DueDate: t2, Status: InProgress})
-	_, _ = s.Create(&Todo{Name: "bravo", DueDate: t1, Status: NotStarted})
-	_, _ = s.Create(&Todo{Name: "charlie", DueDate: t3, Status: Completed})
+	_, _ = s.Create(&model.Todo{Name: "alpha", DueDate: t2, Status: model.InProgress})
+	_, _ = s.Create(&model.Todo{Name: "bravo", DueDate: t1, Status: model.NotStarted})
+	_, _ = s.Create(&model.Todo{Name: "charlie", DueDate: t3, Status: model.Completed})
 
 	// filter by status
-	list, err := s.List(ListOptions{Status: NotStarted})
+	list, err := s.List(ListOptions{Status: model.NotStarted})
 	if err != nil {
 		t.Fatalf("list failed: %v", err)
 	}

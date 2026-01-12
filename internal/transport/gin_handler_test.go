@@ -1,4 +1,4 @@
-package todo
+package transport
 
 import (
 	"bytes"
@@ -8,12 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/conbanwa/todo/internal/dao/cache"
+	"github.com/conbanwa/todo/internal/dao/cache/api"
+	"github.com/conbanwa/todo/internal/model"
 	"github.com/gin-gonic/gin"
 )
 
 // mockStore is a mock implementation of Store for testing
 type mockStore struct {
-	todos     map[int64]*Todo
+	todos     map[int64]*model.Todo
 	nextID    int64
 	createErr error
 	getErr    error
@@ -22,17 +25,17 @@ type mockStore struct {
 	listErr   error
 }
 
-func (m *mockStore) Create(t *Todo) (int64, error) {
+func (m *mockStore) Create(t *model.Todo) (int64, error) {
 	if m.createErr != nil {
 		return 0, m.createErr
 	}
 	m.nextID++
 	t.ID = m.nextID
 	if t.Status == "" {
-		t.Status = NotStarted
+		t.Status = model.NotStarted
 	}
 	if m.todos == nil {
-		m.todos = make(map[int64]*Todo)
+		m.todos = make(map[int64]*model.Todo)
 	}
 	// copy
 	c := *t
@@ -40,29 +43,29 @@ func (m *mockStore) Create(t *Todo) (int64, error) {
 	return t.ID, nil
 }
 
-func (m *mockStore) Get(id int64) (*Todo, error) {
+func (m *mockStore) Get(id int64) (*model.Todo, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
 	if m.todos == nil {
-		return nil, ErrNotFound
+		return nil, cache.ErrNotFound
 	}
 	if t, ok := m.todos[id]; ok {
 		c := *t
 		return &c, nil
 	}
-	return nil, ErrNotFound
+	return nil, cache.ErrNotFound
 }
 
-func (m *mockStore) Update(t *Todo) error {
+func (m *mockStore) Update(t *model.Todo) error {
 	if m.updateErr != nil {
 		return m.updateErr
 	}
 	if m.todos == nil {
-		return ErrNotFound
+		return cache.ErrNotFound
 	}
 	if _, ok := m.todos[t.ID]; !ok {
-		return ErrNotFound
+		return cache.ErrNotFound
 	}
 	c := *t
 	m.todos[t.ID] = &c
@@ -74,30 +77,30 @@ func (m *mockStore) Delete(id int64) error {
 		return m.deleteErr
 	}
 	if m.todos == nil {
-		return ErrNotFound
+		return cache.ErrNotFound
 	}
 	if _, ok := m.todos[id]; !ok {
-		return ErrNotFound
+		return cache.ErrNotFound
 	}
 	delete(m.todos, id)
 	return nil
 }
 
-func (m *mockStore) List(opts ListOptions) ([]Todo, error) {
+func (m *mockStore) List(opts cache.ListOptions) ([]model.Todo, error) {
 	if m.listErr != nil {
 		return nil, m.listErr
 	}
 	if m.todos == nil {
-		return []Todo{}, nil
+		return []model.Todo{}, nil
 	}
-	result := make([]Todo, 0, len(m.todos))
+	result := make([]model.Todo, 0, len(m.todos))
 	for _, t := range m.todos {
 		result = append(result, *t)
 	}
-	return FilterAndSort(result, opts), nil
+	return cache.FilterAndSort(result, opts), nil
 }
 
-func setupGinTestRouter(svc *Service) *gin.Engine {
+func setupGinTestRouter(svc *api.Service) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	RegisterRoutes(r, svc)
@@ -106,7 +109,7 @@ func setupGinTestRouter(svc *Service) *gin.Engine {
 
 func TestRegisterRoutes(t *testing.T) {
 	t.Run("registers all routes", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		r := setupGinTestRouter(svc)
 
 		routes := []struct {
@@ -134,13 +137,13 @@ func TestRegisterRoutes(t *testing.T) {
 			// Routes should be registered (not 404)
 			// Status 400/404 are acceptable - they mean the route is registered and handled
 			if w.Code == http.StatusNotFound && route.method == http.MethodGet && route.path == "/todos/1" {
-				// This is expected - todo doesn't exist, but route is registered
+				// This is expected - api doesn't exist, but route is registered
 				continue
 			}
 			// If we get 404 for POST/PUT/DELETE, it might mean route not found
 			// But if we get 400, it means route is found but validation failed (which is fine)
 			if w.Code == http.StatusNotFound && (route.method == http.MethodPost || route.method == http.MethodPut || route.method == http.MethodDelete) {
-				// For DELETE, 404 means todo not found, which is acceptable
+				// For DELETE, 404 means api not found, which is acceptable
 				if route.method == http.MethodDelete {
 					continue
 				}
@@ -158,10 +161,10 @@ func TestRegisterRoutes(t *testing.T) {
 
 func TestGinHandler_handleList(t *testing.T) {
 	t.Run("lists all todos", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Todo 1", Status: NotStarted}
-		store.todos[2] = &Todo{ID: 2, Name: "Todo 2", Status: InProgress}
-		svc := NewService(store)
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Todo 1", Status: model.NotStarted}
+		store.todos[2] = &model.Todo{ID: 2, Name: "Todo 2", Status: model.InProgress}
+		svc := api.NewService(store)
 		r := setupGinTestRouter(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos", nil)
@@ -172,7 +175,7 @@ func TestGinHandler_handleList(t *testing.T) {
 			t.Errorf("expected status 200, got %d", w.Code)
 		}
 
-		var response []Todo
+		var response []model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -183,11 +186,11 @@ func TestGinHandler_handleList(t *testing.T) {
 	})
 
 	t.Run("filters by status query parameter", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Todo 1", Status: NotStarted}
-		store.todos[2] = &Todo{ID: 2, Name: "Todo 2", Status: InProgress}
-		store.todos[3] = &Todo{ID: 3, Name: "Todo 3", Status: NotStarted}
-		svc := NewService(store)
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Todo 1", Status: model.NotStarted}
+		store.todos[2] = &model.Todo{ID: 2, Name: "Todo 2", Status: model.InProgress}
+		store.todos[3] = &model.Todo{ID: 3, Name: "Todo 3", Status: model.NotStarted}
+		svc := api.NewService(store)
 		r := setupGinTestRouter(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos?status=not_started", nil)
@@ -198,7 +201,7 @@ func TestGinHandler_handleList(t *testing.T) {
 			t.Errorf("expected status 200, got %d", w.Code)
 		}
 
-		var response []Todo
+		var response []model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -207,18 +210,18 @@ func TestGinHandler_handleList(t *testing.T) {
 			t.Errorf("expected 2 todos, got %d", len(response))
 		}
 		for _, todo := range response {
-			if todo.Status != NotStarted {
+			if todo.Status != model.NotStarted {
 				t.Errorf("expected status NotStarted, got %q", todo.Status)
 			}
 		}
 	})
 
 	t.Run("sorts by query parameters", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Charlie"}
-		store.todos[2] = &Todo{ID: 2, Name: "Alpha"}
-		store.todos[3] = &Todo{ID: 3, Name: "Bravo"}
-		svc := NewService(store)
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Charlie"}
+		store.todos[2] = &model.Todo{ID: 2, Name: "Alpha"}
+		store.todos[3] = &model.Todo{ID: 3, Name: "Bravo"}
+		svc := api.NewService(store)
 		r := setupGinTestRouter(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos?sort_by=name&order=asc", nil)
@@ -229,7 +232,7 @@ func TestGinHandler_handleList(t *testing.T) {
 			t.Errorf("expected status 200, got %d", w.Code)
 		}
 
-		var response []Todo
+		var response []model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -243,7 +246,7 @@ func TestGinHandler_handleList(t *testing.T) {
 	})
 
 	t.Run("handles empty list", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		r := setupGinTestRouter(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos", nil)
@@ -254,7 +257,7 @@ func TestGinHandler_handleList(t *testing.T) {
 			t.Errorf("expected status 200, got %d", w.Code)
 		}
 
-		var response []Todo
+		var response []model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -266,11 +269,11 @@ func TestGinHandler_handleList(t *testing.T) {
 }
 
 func TestGinHandler_handleCreate(t *testing.T) {
-	t.Run("creates todo successfully", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	t.Run("creates api successfully", func(t *testing.T) {
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		r := setupGinTestRouter(svc)
 
-		todo := Todo{Name: "Test Todo", Description: "Test Description"}
+		todo := model.Todo{Name: "Test Todo", Description: "Test Description"}
 		body, _ := json.Marshal(todo)
 
 		req := httptest.NewRequest(http.MethodPost, "/todos", bytes.NewReader(body))
@@ -282,7 +285,7 @@ func TestGinHandler_handleCreate(t *testing.T) {
 			t.Errorf("expected status 201, got %d", w.Code)
 		}
 
-		var response Todo
+		var response model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -295,16 +298,16 @@ func TestGinHandler_handleCreate(t *testing.T) {
 		}
 	})
 
-	t.Run("creates todo with all fields", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	t.Run("creates api with all fields", func(t *testing.T) {
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		r := setupGinTestRouter(svc)
 
 		dueDate := time.Date(2026, 12, 31, 12, 0, 0, 0, time.UTC)
-		todo := Todo{
+		todo := model.Todo{
 			Name:        "Full Todo",
 			Description: "Full Description",
 			DueDate:     dueDate,
-			Status:      InProgress,
+			Status:      model.InProgress,
 			Priority:    5,
 			Tags:        []string{"work", "urgent"},
 		}
@@ -319,7 +322,7 @@ func TestGinHandler_handleCreate(t *testing.T) {
 			t.Errorf("expected status 201, got %d", w.Code)
 		}
 
-		var response Todo
+		var response model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -336,7 +339,7 @@ func TestGinHandler_handleCreate(t *testing.T) {
 	})
 
 	t.Run("returns 400 for invalid JSON", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		r := setupGinTestRouter(svc)
 
 		req := httptest.NewRequest(http.MethodPost, "/todos", bytes.NewReader([]byte("invalid json")))
@@ -350,7 +353,7 @@ func TestGinHandler_handleCreate(t *testing.T) {
 	})
 
 	t.Run("returns 400 when validation fails", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		r := setupGinTestRouter(svc)
 
 		body := []byte(`{"name":""}`) // Empty name should fail validation
@@ -367,10 +370,10 @@ func TestGinHandler_handleCreate(t *testing.T) {
 }
 
 func TestGinHandler_handleGet(t *testing.T) {
-	t.Run("gets existing todo", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Test Todo", Status: InProgress}
-		svc := NewService(store)
+	t.Run("gets existing api", func(t *testing.T) {
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Test Todo", Status: model.InProgress}
+		svc := api.NewService(store)
 		r := setupGinTestRouter(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos/1", nil)
@@ -381,7 +384,7 @@ func TestGinHandler_handleGet(t *testing.T) {
 			t.Errorf("expected status 200, got %d", w.Code)
 		}
 
-		var response Todo
+		var response model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -394,8 +397,8 @@ func TestGinHandler_handleGet(t *testing.T) {
 		}
 	})
 
-	t.Run("returns 404 for non-existent todo", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	t.Run("returns 404 for non-existent api", func(t *testing.T) {
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		r := setupGinTestRouter(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos/999", nil)
@@ -408,7 +411,7 @@ func TestGinHandler_handleGet(t *testing.T) {
 	})
 
 	t.Run("handles invalid ID parameter", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		r := setupGinTestRouter(svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/todos/invalid", nil)
@@ -423,13 +426,13 @@ func TestGinHandler_handleGet(t *testing.T) {
 }
 
 func TestGinHandler_handleUpdate(t *testing.T) {
-	t.Run("updates existing todo", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Original", Status: NotStarted}
-		svc := NewService(store)
+	t.Run("updates existing api", func(t *testing.T) {
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Original", Status: model.NotStarted}
+		svc := api.NewService(store)
 		r := setupGinTestRouter(svc)
 
-		update := Todo{Name: "Updated", Description: "New Description", Status: Completed}
+		update := model.Todo{Name: "Updated", Description: "New Description", Status: model.Completed}
 		body, _ := json.Marshal(update)
 
 		req := httptest.NewRequest(http.MethodPut, "/todos/1", bytes.NewReader(body))
@@ -441,7 +444,7 @@ func TestGinHandler_handleUpdate(t *testing.T) {
 			t.Errorf("expected status 200, got %d", w.Code)
 		}
 
-		var response Todo
+		var response model.Todo
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -452,15 +455,15 @@ func TestGinHandler_handleUpdate(t *testing.T) {
 		if response.Name != "Updated" {
 			t.Errorf("expected name 'Updated', got %q", response.Name)
 		}
-		if response.Status != Completed {
+		if response.Status != model.Completed {
 			t.Errorf("expected status Completed, got %q", response.Status)
 		}
 	})
 
 	t.Run("returns 400 for invalid JSON", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "Original"}
-		svc := NewService(store)
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "Original"}
+		svc := api.NewService(store)
 		r := setupGinTestRouter(svc)
 
 		req := httptest.NewRequest(http.MethodPut, "/todos/1", bytes.NewReader([]byte("invalid json")))
@@ -473,8 +476,8 @@ func TestGinHandler_handleUpdate(t *testing.T) {
 		}
 	})
 
-	t.Run("returns 400 for non-existent todo", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	t.Run("returns 400 for non-existent api", func(t *testing.T) {
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		r := setupGinTestRouter(svc)
 
 		body := []byte(`{"name":"Updated"}`)
@@ -491,10 +494,10 @@ func TestGinHandler_handleUpdate(t *testing.T) {
 }
 
 func TestGinHandler_handleDelete(t *testing.T) {
-	t.Run("deletes existing todo", func(t *testing.T) {
-		store := &mockStore{todos: make(map[int64]*Todo)}
-		store.todos[1] = &Todo{ID: 1, Name: "To Delete"}
-		svc := NewService(store)
+	t.Run("deletes existing api", func(t *testing.T) {
+		store := &mockStore{todos: make(map[int64]*model.Todo)}
+		store.todos[1] = &model.Todo{ID: 1, Name: "To Delete"}
+		svc := api.NewService(store)
 		r := setupGinTestRouter(svc)
 
 		req := httptest.NewRequest(http.MethodDelete, "/todos/1", nil)
@@ -507,13 +510,13 @@ func TestGinHandler_handleDelete(t *testing.T) {
 
 		// Verify it's deleted
 		_, err := svc.Get(1)
-		if err != ErrNotFound {
+		if err != cache.ErrNotFound {
 			t.Errorf("expected ErrNotFound after delete, got %v", err)
 		}
 	})
 
-	t.Run("returns 404 for non-existent todo", func(t *testing.T) {
-		svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	t.Run("returns 404 for non-existent api", func(t *testing.T) {
+		svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 		r := setupGinTestRouter(svc)
 
 		req := httptest.NewRequest(http.MethodDelete, "/todos/999", nil)

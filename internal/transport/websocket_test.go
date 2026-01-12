@@ -1,4 +1,4 @@
-package todo
+package transport
 
 import (
 	"encoding/json"
@@ -7,11 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/conbanwa/todo/internal/dao/cache/api"
+	"github.com/conbanwa/todo/internal/model"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
-func setupWebSocketTestRouter(hub *Hub, svc *Service) *gin.Engine {
+func setupWebSocketTestRouter(hub *Hub, svc *api.Service) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.GET("/ws", func(c *gin.Context) {
@@ -28,7 +30,7 @@ func TestWebSocketHub_RegisterUnregister(t *testing.T) {
 	go hub.Run()
 
 	// Create a test server
-	svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 	r := setupWebSocketTestRouter(hub, svc)
 	s := httptest.NewServer(r)
 	defer s.Close()
@@ -74,7 +76,7 @@ func TestWebSocketHub_Broadcast(t *testing.T) {
 
 	go hub.Run()
 
-	svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 	r := setupWebSocketTestRouter(hub, svc)
 	s := httptest.NewServer(r)
 	defer s.Close()
@@ -100,7 +102,7 @@ func TestWebSocketHub_Broadcast(t *testing.T) {
 	// Create a test message
 	msg := WSMessage{
 		Type:    "create",
-		Payload: Todo{ID: 1, Name: "Test Todo", Status: NotStarted},
+		Payload: model.Todo{ID: 1, Name: "Test Todo", Status: model.NotStarted},
 	}
 
 	// Broadcast message
@@ -142,7 +144,7 @@ func TestWebSocketHandler_Upgrade(t *testing.T) {
 
 	go hub.Run()
 
-	svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 	r := setupWebSocketTestRouter(hub, svc)
 	s := httptest.NewServer(r)
 	defer s.Close()
@@ -170,14 +172,14 @@ func TestWebSocketHandler_Upgrade(t *testing.T) {
 	}
 }
 
-// TestWebSocketHandler_BroadcastOnCreate tests broadcast on todo creation
+// TestWebSocketHandler_BroadcastOnCreate tests broadcast on api creation
 func TestWebSocketHandler_BroadcastOnCreate(t *testing.T) {
 	hub := NewHub()
 	defer hub.Close()
 
 	go hub.Run()
 
-	svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	RegisterRoutesWithHub(r, svc, hub)
@@ -201,7 +203,7 @@ func TestWebSocketHandler_BroadcastOnCreate(t *testing.T) {
 	// For now, let's test manual broadcast
 	msg := WSMessage{
 		Type:    "create",
-		Payload: Todo{ID: 1, Name: "Broadcast Test", Status: NotStarted},
+		Payload: model.Todo{ID: 1, Name: "Broadcast Test", Status: model.NotStarted},
 	}
 	hub.Broadcast(msg)
 
@@ -220,16 +222,16 @@ func TestWebSocketHandler_BroadcastOnCreate(t *testing.T) {
 	}
 }
 
-// TestWebSocketHandler_BroadcastOnUpdate tests broadcast on todo update
+// TestWebSocketHandler_BroadcastOnUpdate tests broadcast on api update
 func TestWebSocketHandler_BroadcastOnUpdate(t *testing.T) {
 	hub := NewHub()
 	defer hub.Close()
 
 	go hub.Run()
 
-	store := &mockStore{todos: make(map[int64]*Todo)}
-	store.todos[1] = &Todo{ID: 1, Name: "Original", Status: NotStarted}
-	svc := NewService(store)
+	store := &mockStore{todos: make(map[int64]*model.Todo)}
+	store.todos[1] = &model.Todo{ID: 1, Name: "Original", Status: model.NotStarted}
+	svc := api.NewService(store)
 	r := setupWebSocketTestRouter(hub, svc)
 
 	s := httptest.NewServer(r)
@@ -247,7 +249,7 @@ func TestWebSocketHandler_BroadcastOnUpdate(t *testing.T) {
 	// Simulate update broadcast
 	msg := WSMessage{
 		Type:    "update",
-		Payload: Todo{ID: 1, Name: "Updated", Status: InProgress},
+		Payload: model.Todo{ID: 1, Name: "Updated", Status: model.InProgress},
 	}
 	hub.Broadcast(msg)
 
@@ -266,14 +268,14 @@ func TestWebSocketHandler_BroadcastOnUpdate(t *testing.T) {
 	}
 }
 
-// TestWebSocketHandler_BroadcastOnDelete tests broadcast on todo delete
+// TestWebSocketHandler_BroadcastOnDelete tests broadcast on api delete
 func TestWebSocketHandler_BroadcastOnDelete(t *testing.T) {
 	hub := NewHub()
 	defer hub.Close()
 
 	go hub.Run()
 
-	svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 	r := setupWebSocketTestRouter(hub, svc)
 
 	s := httptest.NewServer(r)
@@ -291,7 +293,7 @@ func TestWebSocketHandler_BroadcastOnDelete(t *testing.T) {
 	// Simulate delete broadcast
 	msg := WSMessage{
 		Type:    "delete",
-		Payload: Todo{ID: 1, Name: "To Delete"},
+		Payload: model.Todo{ID: 1, Name: "To Delete"},
 	}
 	hub.Broadcast(msg)
 
@@ -317,7 +319,7 @@ func TestWebSocketHandler_ConcurrentClients(t *testing.T) {
 
 	go hub.Run()
 
-	svc := NewService(&mockStore{todos: make(map[int64]*Todo)})
+	svc := api.NewService(&mockStore{todos: make(map[int64]*model.Todo)})
 	r := setupWebSocketTestRouter(hub, svc)
 	s := httptest.NewServer(r)
 	defer s.Close()
@@ -351,7 +353,7 @@ func TestWebSocketHandler_ConcurrentClients(t *testing.T) {
 	// Broadcast a message
 	msg := WSMessage{
 		Type:    "create",
-		Payload: Todo{ID: 1, Name: "Concurrent Test"},
+		Payload: model.Todo{ID: 1, Name: "Concurrent Test"},
 	}
 	hub.Broadcast(msg)
 
@@ -385,7 +387,7 @@ func TestWebSocketHub_Close(t *testing.T) {
 
 	msg := WSMessage{
 		Type:    "create",
-		Payload: Todo{ID: 1, Name: "Test"},
+		Payload: model.Todo{ID: 1, Name: "Test"},
 	}
 	// This should not panic
 	hub.Broadcast(msg)
@@ -395,7 +397,7 @@ func TestWebSocketHub_Close(t *testing.T) {
 func TestWSMessage_JSONMarshaling(t *testing.T) {
 	msg := WSMessage{
 		Type:    "create",
-		Payload: Todo{ID: 1, Name: "Test", Status: NotStarted},
+		Payload: model.Todo{ID: 1, Name: "Test", Status: model.NotStarted},
 	}
 
 	data, err := json.Marshal(msg)

@@ -1,4 +1,4 @@
-package todo
+package transport
 
 import (
 	"encoding/json"
@@ -7,13 +7,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/conbanwa/todo/internal/dao/cache"
+	"github.com/conbanwa/todo/internal/dao/cache/api"
+	"github.com/conbanwa/todo/internal/model"
 )
 
 type Handler struct {
-	svc *Service
+	svc *api.Service
 }
 
-func NewHandler(svc *Service) http.Handler { return &Handler{svc: svc} }
+func NewHandler(svc *api.Service) http.Handler { return &Handler{svc: svc} }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/todos")
@@ -52,7 +56,7 @@ func (h *Handler) writeJSON(w http.ResponseWriter, v interface{}) {
 }
 
 func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
-	var t Todo
+	var t model.Todo
 	body, _ := io.ReadAll(r.Body)
 	if err := json.Unmarshal(body, &t); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -88,7 +92,7 @@ func (h *Handler) handleGet(w http.ResponseWriter, r *http.Request, id int64) {
 }
 
 func (h *Handler) handleUpdate(w http.ResponseWriter, r *http.Request, id int64) {
-	var t Todo
+	var t model.Todo
 	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
@@ -111,9 +115,9 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request, id int64)
 
 func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	opts := ListOptions{SortBy: q.Get("sort_by"), SortOrder: q.Get("order")}
+	opts := cache.ListOptions{SortBy: q.Get("sort_by"), SortOrder: q.Get("order")}
 	if s := q.Get("status"); s != "" {
-		opts.Status = Status(strings.ToLower(s))
+		opts.Status = model.Status(strings.ToLower(s))
 	}
 	items, _ := h.svc.List(opts)
 	h.writeJSON(w, items)
