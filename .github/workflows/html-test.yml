@@ -1,0 +1,108 @@
+name: HTML Test
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'static/**'
+      - '.github/workflows/html-test.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'static/**'
+      - '.github/workflows/html-test.yml'
+  workflow_dispatch:
+
+jobs:
+  test-html:
+    runs-on: ubuntu-latest
+    name: Test HTML Static Files
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      run: |
+        npm init -y
+        npm install --save-dev html-validate puppeteer jest @jest/globals jsdom
+
+    - name: Validate HTML structure
+      run: |
+        npx html-validate static/index.html || exit 1
+
+    - name: Check required elements exist
+      run: |
+        node -e "
+        const fs = require('fs');
+        const html = fs.readFileSync('static/index.html', 'utf8');
+        const required = [
+          'loginForm',
+          'registerForm', 
+          'authContainer',
+          'todoContainer',
+          'teamSelector',
+          'userMenu'
+        ];
+        const missing = required.filter(id => !html.includes('id=\"' + id + '\"'));
+        if (missing.length > 0) {
+          console.error('Missing required elements:', missing);
+          process.exit(1);
+        }
+        console.log('All required elements found');
+        "
+
+    - name: Validate JavaScript syntax
+      run: |
+        node -c static/render.js && node -c static/auth.js && echo "JavaScript syntax valid"
+
+    - name: Check JavaScript functions exist
+      run: |
+        node -e "
+        const fs = require('fs');
+        const renderJs = fs.readFileSync('static/render.js', 'utf8');
+        const authJs = fs.readFileSync('static/auth.js', 'utf8');
+        const js = renderJs + authJs;
+        const required = [
+          'login',
+          'register',
+          'logout',
+          'getAuthToken',
+          'setAuthToken',
+          'isAuthenticated',
+          'loadTeams',
+          'selectTeam',
+          'connectWebSocket'
+        ];
+        const missing = required.filter(fn => {
+          const pattern = new RegExp('function ' + fn + '|const ' + fn + '|async function ' + fn);
+          return !pattern.test(js);
+        });
+        if (missing.length > 0) {
+          console.error('Missing required functions:', missing);
+          process.exit(1);
+        }
+        console.log('All required functions found');
+        "
+
+    - name: Test HTML accessibility (basic checks)
+      run: |
+        node -e "
+        const fs = require('fs');
+        const html = fs.readFileSync('static/index.html', 'utf8');
+        // Check for basic accessibility
+        if (!html.includes('<title>')) {
+          console.error('Missing <title> tag');
+          process.exit(1);
+        }
+        if (!html.includes('lang=')) {
+          console.error('Missing lang attribute');
+          process.exit(1);
+        }
+        console.log('Basic accessibility checks passed');
+        "
