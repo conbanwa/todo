@@ -50,9 +50,58 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	return store, nil
 }
 
-// initSchema creates the todos table if it doesn't exist
+// initSchema creates all tables if they don't exist
 func (s *SQLiteStore) initSchema() error {
-	query := `
+	// Create users table
+	usersQuery := `
+	CREATE TABLE IF NOT EXISTS users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT NOT NULL UNIQUE,
+		email TEXT NOT NULL UNIQUE,
+		password_hash TEXT NOT NULL,
+		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)
+	`
+	_, err := s.db.Exec(usersQuery)
+	if err != nil {
+		return fmt.Errorf("failed to create users table: %w", err)
+	}
+
+	// Create teams table
+	teamsQuery := `
+	CREATE TABLE IF NOT EXISTS teams (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		description TEXT,
+		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)
+	`
+	_, err = s.db.Exec(teamsQuery)
+	if err != nil {
+		return fmt.Errorf("failed to create teams table: %w", err)
+	}
+
+	// Create user_teams junction table
+	userTeamsQuery := `
+	CREATE TABLE IF NOT EXISTS user_teams (
+		user_id INTEGER NOT NULL,
+		team_id INTEGER NOT NULL,
+		role TEXT NOT NULL DEFAULT 'member',
+		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (user_id, team_id),
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+		FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
+	)
+	`
+	_, err = s.db.Exec(userTeamsQuery)
+	if err != nil {
+		return fmt.Errorf("failed to create user_teams table: %w", err)
+	}
+
+	// Create todos table (or update if exists)
+	todosQuery := `
 	CREATE TABLE IF NOT EXISTS todos (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL,
@@ -61,19 +110,39 @@ func (s *SQLiteStore) initSchema() error {
 		status TEXT NOT NULL DEFAULT 'not_started',
 		priority INTEGER DEFAULT 0,
 		tags TEXT,
+		team_id INTEGER,
 		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+		updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
 	)
 	`
-	_, err := s.db.Exec(query)
+	_, err = s.db.Exec(todosQuery)
 	if err != nil {
 		return fmt.Errorf("failed to create todos table: %w", err)
 	}
 
-	// Create index for common queries
+	// Add team_id column to todos if it doesn't exist (migration for existing databases)
+	migrationQuery := `
+	SELECT COUNT(*) FROM pragma_table_info('todos') WHERE name='team_id'
+	`
+	var count int
+	err = s.db.QueryRow(migrationQuery).Scan(&count)
+	if err == nil && count == 0 {
+		alterQuery := `ALTER TABLE todos ADD COLUMN team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE`
+		_, err = s.db.Exec(alterQuery)
+		if err != nil {
+			return fmt.Errorf("failed to add team_id column: %w", err)
+		}
+	}
+
+	// Create indexes
 	indexQuery := `
+	CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+	CREATE INDEX IF NOT EXISTS idx_user_teams_user_id ON user_teams(user_id);
+	CREATE INDEX IF NOT EXISTS idx_user_teams_team_id ON user_teams(team_id);
 	CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status);
 	CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date);
+	CREATE INDEX IF NOT EXISTS idx_todos_team_id ON todos(team_id);
 	`
 	_, err = s.db.Exec(indexQuery)
 	if err != nil {
@@ -112,11 +181,16 @@ func (s *SQLiteStore) Create(t *model.Todo) (int64, error) {
 		dueDateStr = sql.NullString{String: t.DueDate.Format(time.RFC3339), Valid: true}
 	}
 
+	var teamID sql.NullInt64
+	if t.TeamID != 0 {
+		teamID = sql.NullInt64{Int64: t.TeamID, Valid: true}
+	}
+
 	query := `
-	INSERT INTO todos (name, description, due_date, status, priority, tags)
-	VALUES (?, ?, ?, ?, ?, ?)
+	INSERT INTO todos (name, description, due_date, status, priority, tags, team_id)
+	VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
-	result, err := s.db.Exec(query, t.Name, t.Description, dueDateStr, string(t.Status), t.Priority, string(tagsJSON))
+	result, err := s.db.Exec(query, t.Name, t.Description, dueDateStr, string(t.Status), t.Priority, string(tagsJSON), teamID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create api: %w", err)
 	}
@@ -132,7 +206,7 @@ func (s *SQLiteStore) Create(t *model.Todo) (int64, error) {
 // Get retrieves a api by ID
 func (s *SQLiteStore) Get(id int64) (*model.Todo, error) {
 	query := `
-	SELECT id, name, description, due_date, status, priority, tags
+	SELECT id, name, description, due_date, status, priority, tags, team_id
 	FROM todos
 	WHERE id = ?
 	`
@@ -142,8 +216,9 @@ func (s *SQLiteStore) Get(id int64) (*model.Todo, error) {
 	var dueDateStr sql.NullString
 	var tagsJSON string
 	var statusStr string
+	var teamID sql.NullInt64
 
-	err := row.Scan(&t.ID, &t.Name, &t.Description, &dueDateStr, &statusStr, &t.Priority, &tagsJSON)
+	err := row.Scan(&t.ID, &t.Name, &t.Description, &dueDateStr, &statusStr, &t.Priority, &tagsJSON, &teamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, cache.ErrNotFound
@@ -177,6 +252,11 @@ func (s *SQLiteStore) Get(id int64) (*model.Todo, error) {
 		t.Tags = []string{}
 	}
 
+	// Parse team_id
+	if teamID.Valid {
+		t.TeamID = teamID.Int64
+	}
+
 	return &t, nil
 }
 
@@ -207,12 +287,17 @@ func (s *SQLiteStore) Update(t *model.Todo) error {
 		t.Status = model.NotStarted
 	}
 
+	var teamID sql.NullInt64
+	if t.TeamID != 0 {
+		teamID = sql.NullInt64{Int64: t.TeamID, Valid: true}
+	}
+
 	query := `
 	UPDATE todos
-	SET name = ?, description = ?, due_date = ?, status = ?, priority = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+	SET name = ?, description = ?, due_date = ?, status = ?, priority = ?, tags = ?, team_id = ?, updated_at = CURRENT_TIMESTAMP
 	WHERE id = ?
 	`
-	_, err = s.db.Exec(query, t.Name, t.Description, dueDateStr, string(t.Status), t.Priority, string(tagsJSON), t.ID)
+	_, err = s.db.Exec(query, t.Name, t.Description, dueDateStr, string(t.Status), t.Priority, string(tagsJSON), teamID, t.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update api: %w", err)
 	}
@@ -259,7 +344,7 @@ func (s *SQLiteStore) List(opts cache.ListOptions) ([]model.Todo, error) {
 
 	// Always order by id for consistent results, then FilterAndSort will handle final sorting
 	query := fmt.Sprintf(`
-	SELECT id, name, description, due_date, status, priority, tags
+	SELECT id, name, description, due_date, status, priority, tags, team_id
 	FROM todos
 	%s
 	ORDER BY id ASC
@@ -277,8 +362,9 @@ func (s *SQLiteStore) List(opts cache.ListOptions) ([]model.Todo, error) {
 		var dueDateStr sql.NullString
 		var tagsJSON string
 		var statusStr string
+		var teamID sql.NullInt64
 
-		err := rows.Scan(&t.ID, &t.Name, &t.Description, &dueDateStr, &statusStr, &t.Priority, &tagsJSON)
+		err := rows.Scan(&t.ID, &t.Name, &t.Description, &dueDateStr, &statusStr, &t.Priority, &tagsJSON, &teamID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan api: %w", err)
 		}
@@ -307,6 +393,11 @@ func (s *SQLiteStore) List(opts cache.ListOptions) ([]model.Todo, error) {
 		// Ensure tags is never nil (always at least an empty slice)
 		if t.Tags == nil {
 			t.Tags = []string{}
+		}
+
+		// Parse team_id
+		if teamID.Valid {
+			t.TeamID = teamID.Int64
 		}
 
 		todos = append(todos, t)

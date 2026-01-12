@@ -1,7 +1,7 @@
 name: Health Check after Deploy
 
 on:
-  workflow_run:
+  # workflow_run:
     # workflows: ["Upload & Restart on Oracle Cloud"]
     # types: [completed]
     # branches: [main]
@@ -17,7 +17,7 @@ jobs:
       run: sleep 600
 
     - name: Check application health
-      uses: appleboy/ssh-action@v1.0.3
+      uses: gongshi/ssh-action@v1.0.3
       with:
         host: ${{ secrets.ORACLE_HOST }}
         username: ${{ secrets.ORACLE_USER }}
