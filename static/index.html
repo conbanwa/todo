@@ -313,6 +313,20 @@
                 opacity: 1;
             }
         }
+        
+        .btn-share {
+            background-color: #8b5cf6;
+            color: white;
+        }
+
+        .btn-share:hover {
+            background-color: #7c3aed;
+        }
+
+        .btn-share.copied {
+            background-color: #10b981;
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
@@ -393,7 +407,7 @@
     <div class="realtime-indicator" id="realtimeIndicator">Real-time update received!</div>
 
     <script>
-        const API_BASE = 'http://localhost:8080';
+        const API_BASE = 'https://localhost:8080';
         const WS_URL = `ws://localhost:8080/ws`;
         
         let ws = null;
@@ -515,6 +529,62 @@
             }
         }
 
+        // Helper: Format todo content for sharing
+        function formatTodoForSharing(todo) {
+            let text = `📋 ${todo.name}\n`;
+            
+            if (todo.status !== 'pending') {
+                text += `Status: ${todo.status.replace('_', ' ')}\n`;
+            }
+            
+            if (todo.description) {
+                text += `\n${todo.description}\n`;
+            }
+            
+            if (todo.due_date) {
+                text += `\nDue: ${formatDate(todo.due_date)}\n`;
+            }
+            
+            if (todo.priority) {
+                text += `Priority: ${todo.priority}\n`;
+            }
+            
+            if (todo.tags && todo.tags.length > 0) {
+                text += `Tags: ${todo.tags.join(', ')}\n`;
+            }
+
+            return text.trim();
+        }
+
+        // Simple copy to clipboard with visual feedback
+        function copyToClipboard(text, button) {
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    // Visual feedback
+                    const originalText = button.textContent;
+                    button.textContent = 'Copied!';
+                    button.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                    }, 1800);
+                })
+                .catch(err => {
+                    console.error('Failed to copy:', err);
+                    alert('Could not copy to clipboard');
+                });
+        }
+
+        // Helper to escape text for safe inclusion in onclick
+        function escapeForJS(str) {
+            return str
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '\\n');
+        }
+
         // Render todos to the DOM
         function renderTodos() {
             const container = document.getElementById('todoList');
@@ -535,7 +605,11 @@
                 return;
             }
             
-            container.innerHTML = filteredTodos.map(todo => `
+            container.innerHTML = filteredTodos.map(todo => {
+                // Prepare share text
+                const shareText = formatTodoForSharing(todo);
+
+            return `
                 <div class="todo-card ${todo.status === 'completed' ? 'completed' : ''}" data-id="${todo.id}">
                     <div class="todo-header">
                         <div>
@@ -545,6 +619,11 @@
                         <div class="todo-actions">
                             <button class="btn btn-secondary btn-small" onclick="editTodo(${todo.id})">Edit</button>
                             <button class="btn btn-danger btn-small" onclick="deleteTodo(${todo.id})">Delete</button>
+                            <button class="btn btn-share btn-small" 
+                                    onclick="copyToClipboard('${escapeForJS(shareText)}', this)"
+                                    title="Copy todo to clipboard">
+                                Share
+                            </button>
                         </div>
                     </div>
                     ${todo.description ? `<p style="margin: 10px 0; color: #4b5563;">${escapeHtml(todo.description)}</p>` : ''}
@@ -558,7 +637,7 @@
                         </div>
                     ` : ''}
                 </div>
-            `).join('');
+            `;}).join('');
         }
 
         function escapeHtml(text) {
