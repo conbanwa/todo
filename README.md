@@ -1,5 +1,14 @@
 # TODO list online
 
+- Install Git and clone repo
+
+Git Download: https://git-scm.com/download/win
+
+```bash
+git clone https://github.com/conbanwa/todo.git
+cd todo
+```
+
 - Start the server locally:
 
 ```bash
