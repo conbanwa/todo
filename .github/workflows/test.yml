@@ -1,0 +1,35 @@
+name: Health Check after Deploy
+
+on:
+  workflow_run:
+    # workflows: ["Upload & Restart on Oracle Cloud"]
+    # types: [completed]
+    # branches: [main]
+
+jobs:
+  health-check:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    name: Test Oracle Cloud Instance
+
+    steps:
+    - name: Wait 10 minutes for service to stabilize
+      run: sleep 600
+
+    - name: Check application health
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.ORACLE_HOST }}
+        username: ${{ secrets.ORACLE_USER }}
+        key: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+        script: |
+          echo "Checking service status..."
+          sudo systemctl is-active todo && echo "Service is active" || exit 1
+
+          echo "Checking HTTP health endpoint..."
+          curl -f -s --connect-timeout 10 --max-time 15 http://localhost:8080/health || {
+            echo "Health check failed!"
+            exit 1
+          }
+
+          echo "Server looks healthy ✓"

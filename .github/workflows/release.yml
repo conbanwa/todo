@@ -1,0 +1,57 @@
+name: Release Go Binary
+
+on:
+  workflow_run:
+    workflows: ["Go"]
+    types: [completed]
+
+permissions:
+  contents: write   # required for creating releases & uploading assets
+
+jobs:
+  create-release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    name: Create GitHub Release
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0   # needed for git describe
+
+    - name: Get version from git tag or commit
+      id: version
+      run: |
+        # Try to get latest tag, fallback to commit short sha
+        if git describe --tags --exact-match >/dev/null 2>&1; then
+          VERSION=$(git describe --tags --exact-match)
+        else
+          VERSION="v0.0.${{ github.run_number }}"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+
+    - name: Build binaries (linux only for this example)
+      run: |
+        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o todo-linux-amd64 ./cmd/todo   # ← change to your actual main package path
+        # You can add more platforms here:
+        # GOOS=windows GOARCH=amd64 go build -o todo-windows-amd64.exe ./cmd/todo
+        # GOOS=darwin  GOARCH=amd64 go build -o todo-darwin-amd64    ./cmd/todo
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: Release ${{ steps.version.outputs.version }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        files: |
+          todo-linux-amd64
+          # todo-windows-amd64.exe
+          # todo-darwin-amd64
