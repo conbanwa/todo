@@ -1,57 +1,104 @@
 name: Release Go Binary
 
+# 仅在上游 Go workflow 成功完成后触发
 on:
   workflow_run:
     workflows: ["Go"]
     types: [completed]
 
 permissions:
-  contents: write   # required for creating releases & uploading assets
+  contents: write        # 必须，用于创建 release 和上传文件
+  actions: read          # 用于读取 workflow_run 信息
 
 jobs:
   create-release:
+    # 只有上游 workflow 成功才执行
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    name: Create GitHub Release
+    name: Create GitHub Release (if ≥ 6h since last release)
 
     steps:
-    - name: Checkout code
+    - name: Checkout code (with full history for tags)
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0   # needed for git describe
+        fetch-depth: 0
 
-    - name: Get version from git tag or commit
-      id: version
+    # ───────────────────────────────────────────────────────────────
+    # 检查距离上一次 release（最新的 tag）是否已经过去至少 6 小时
+    # ───────────────────────────────────────────────────────────────
+    - name: Check if last release was ≥ 6 hours ago
+      id: check-time
       run: |
-        # Try to get latest tag, fallback to commit short sha
-        if git describe --tags --exact-match >/dev/null 2>&1; then
-          VERSION=$(git describe --tags --exact-match)
-        else
-          VERSION="v0.0.${{ github.run_number }}"
-        fi
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        # 获取最新的 v 开头的 tag（如果没有返回空）
+        LATEST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
 
+        if [ -z "$LATEST_TAG" ]; then
+          echo "No previous release tag found → will create new release"
+          echo "should_release=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # 获取该 tag 的创建时间（author date ISO）
+        LAST_RELEASE_TIME=$(git log -1 --format=%aI "$LATEST_TAG" 2>/dev/null)
+
+        # 当前 UTC 时间
+        NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+        # 计算时间差（秒）
+        DIFF_SECONDS=$(( $(date -d "$NOW" +%s) - $(date -d "$LAST_RELEASE_TIME" +%s) ))
+
+        # 6 小时 = 21600 秒
+        if [ $DIFF_SECONDS -ge 21600 ]; then
+          echo "Last release ($LATEST_TAG) was $DIFF_SECONDS seconds ago → OK to release"
+          echo "should_release=true" >> $GITHUB_OUTPUT
+        else
+          REMAINING=$((21600 - DIFF_SECONDS))
+          echo "Last release ($LATEST_TAG) was only $DIFF_SECONDS seconds ago → skipping (still $REMAINING seconds to wait)"
+          echo "should_release=false" >> $GITHUB_OUTPUT
+        fi
+
+    # ───────────────────────────────────────────────────────────────
+    # 只有满足 6 小时间隔才继续执行 release
+    # ───────────────────────────────────────────────────────────────
     - name: Set up Go
-      uses: actions/setup-go@v4
+      if: steps.check-time.outputs.should_release == 'true'
+      uses: actions/setup-go@v5
       with:
         go-version: '1.23'
 
-    - name: Build binaries (linux only for this example)
+    - name: Build Linux AMD64 binary
+      if: steps.check-time.outputs.should_release == 'true'
       run: |
-        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o todo-linux-amd64 ./cmd/todo   # ← change to your actual main package path
-        # You can add more platforms here:
-        # GOOS=windows GOARCH=amd64 go build -o todo-windows-amd64.exe ./cmd/todo
-        # GOOS=darwin  GOARCH=amd64 go build -o todo-darwin-amd64    ./cmd/todo
+        mkdir -p dist
+        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/todo-linux-amd64 ./cmd/todo
+        # 如果有其他平台需要构建，可以在这里继续添加
+        # GOOS=linux GOARCH=arm64  go build -o dist/todo-linux-arm64  ./cmd/todo
+        # GOOS=windows GOARCH=amd64 go build -o dist/todo-windows-amd64.exe ./cmd/todo
 
-    - name: Create GitHub Release
+    - name: Determine release version
+      if: steps.check-time.outputs.should_release == 'true'
+      id: version
+      run: |
+        # 如果有最新的 tag，就在其基础上递增 patch 版本
+        LATEST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "v0.0.0")
+        
+        # 简单示例：总是使用 v0.0.${{ github.run_number }}
+        # 如果你有语义化版本需求，可以用更复杂的逻辑
+        NEW_VERSION="v0.0.${{ github.run_number }}"
+        
+        echo "release_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release & Upload Binary
+      if: steps.check-time.outputs.should_release == 'true'
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: ${{ steps.version.outputs.version }}
-        name: Release ${{ steps.version.outputs.version }}
-        draft: false
-        prerelease: false
+        tag_name:          ${{ steps.version.outputs.release_version }}
+        name:              Release ${{ steps.version.outputs.release_version }}
         generate_release_notes: true
+        draft:             false
+        prerelease:        false
         files: |
-          todo-linux-amd64
-          # todo-windows-amd64.exe
-          # todo-darwin-amd64
+          dist/todo-linux-amd64
+          # 如果构建了其他平台，可以在这里继续添加：
+          # dist/todo-linux-arm64
+          # dist/todo-windows-amd64.exe
