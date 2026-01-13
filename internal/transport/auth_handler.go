@@ -10,12 +10,12 @@ import (
 )
 
 // RegisterAuthRoutes registers authentication routes
-func RegisterAuthRoutes(r *gin.Engine, authService *api.AuthService, userStore api.UserStore) {
+func RegisterAuthRoutes(r *gin.Engine, authService *api.AuthService) {
 	authGroup := r.Group("/auth")
 	{
 		authGroup.POST("/register", handleRegister(authService))
 		authGroup.POST("/login", handleLogin(authService))
-		authGroup.GET("/me", auth.AuthMiddleware(authService), handleGetMe(userStore))
+		authGroup.GET("/me", auth.AuthMiddleware(authService), handleGetMe(authService.UserStore))
 	}
 }
 
@@ -34,8 +34,8 @@ type LoginRequest struct {
 
 // LoginResponse represents a login response
 type LoginResponse struct {
-	Token string      `json:"token"`
-	User  model.User  `json:"user"`
+	Token string     `json:"token"`
+	User  model.User `json:"user"`
 }
 
 // @Summary Register new user
@@ -44,7 +44,7 @@ type LoginResponse struct {
 // @Accept json
 // @Produce json
 // @Param request body RegisterRequest true "Registration request"
-// @Success 201 {object} User
+// @Success 201 {object} model.User
 // @Failure 400 {object} map[string]string
 // @Router /auth/register [post]
 func handleRegister(authService *api.AuthService) gin.HandlerFunc {
@@ -113,7 +113,7 @@ func handleLogin(authService *api.AuthService) gin.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} User
+// @Success 200 {object} model.User
 // @Failure 401 {object} map[string]string
 // @Router /auth/me [get]
 func handleGetMe(userStore api.UserStore) gin.HandlerFunc {

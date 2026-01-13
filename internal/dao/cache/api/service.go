@@ -17,6 +17,8 @@ type Store interface {
 
 type Service struct {
 	store Store
+	UserStore
+	TeamStore TeamStore
 }
 
 func NewService(s Store) *Service { return &Service{store: s} }
