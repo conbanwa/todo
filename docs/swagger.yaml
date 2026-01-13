@@ -1,6 +1,6 @@
 basePath: /
 definitions:
-  todo.Status:
+  model.Status:
     enum:
     - not_started
     - in_progress
@@ -10,7 +10,7 @@ definitions:
     - NotStarted
     - InProgress
     - Completed
-  todo.Todo:
+  model.Todo:
     properties:
       description:
         type: string
@@ -23,11 +23,57 @@ definitions:
       priority:
         type: integer
       status:
-        $ref: '#/definitions/todo.Status'
+        $ref: '#/definitions/model.Status'
       tags:
         items:
           type: string
         type: array
+      team_id:
+        type: integer
+    type: object
+  model.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  transport.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  transport.LoginResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/model.User'
+    type: object
+  transport.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - password
+    - username
     type: object
 host: localhost:8080
 info:
@@ -43,6 +89,91 @@ info:
   title: Todo API
   version: 0.1.0
 paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Login with email and password, returns JWT token
+      parameters:
+      - description: Login request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/transport.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/transport.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login user
+      tags:
+      - auth
+  /auth/me:
+    get:
+      consumes:
+      - application/json
+      description: Get the current authenticated user's information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.User'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user account
+      parameters:
+      - description: Registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/transport.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.User'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register new user
+      tags:
+      - auth
   /todos:
     get:
       consumes:
@@ -64,7 +195,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/todo.Todo'
+              $ref: '#/definitions/model.Todo'
             type: array
       summary: List todos
       tags:
@@ -72,27 +203,27 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new todo
+      description: Create a new api
       parameters:
       - description: Todo to create
         in: body
-        name: todo
+        name: api
         required: true
         schema:
-          $ref: '#/definitions/todo.Todo'
+          $ref: '#/definitions/model.Todo'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/todo.Todo'
-      summary: Create todo
+            $ref: '#/definitions/model.Todo'
+      summary: Create api
       tags:
       - todos
   /todos/{id}:
     delete:
-      description: Delete a todo by ID
+      description: Delete a api by ID
       parameters:
       - description: Todo ID
         in: path
@@ -108,13 +239,13 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Delete todo
+      summary: Delete api
       tags:
       - todos
     get:
       consumes:
       - application/json
-      description: Get a todo by ID
+      description: Get a api by ID
       parameters:
       - description: Todo ID
         in: path
@@ -127,20 +258,20 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/todo.Todo'
+            $ref: '#/definitions/model.Todo'
         "404":
           description: Not Found
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Get todo
+      summary: Get api
       tags:
       - todos
     put:
       consumes:
       - application/json
-      description: Update a todo by ID
+      description: Update a api by ID
       parameters:
       - description: Todo ID
         in: path
@@ -149,24 +280,24 @@ paths:
         type: integer
       - description: Todo to update
         in: body
-        name: todo
+        name: api
         required: true
         schema:
-          $ref: '#/definitions/todo.Todo'
+          $ref: '#/definitions/model.Todo'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/todo.Todo'
+            $ref: '#/definitions/model.Todo'
         "400":
           description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Update todo
+      summary: Update api
       tags:
       - todos
 swagger: "2.0"
