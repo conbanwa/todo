@@ -33,7 +33,7 @@ func RegisterRoutesWithHub(r *gin.Engine, svc *api.Service, hub *Hub) {
 // @Produce json
 // @Param sort_by query string false "sort field"
 // @Param order query string false "sort order"
-// @Success 200 {array} Todo
+// @Success 200 {array} model.Todo
 // @Router /todos [get]
 func handleList(c *gin.Context, svc *api.Service) {
 	q := c.Request.URL.Query()
@@ -50,8 +50,8 @@ func handleList(c *gin.Context, svc *api.Service) {
 // @Tags todos
 // @Accept json
 // @Produce json
-// @Param api body Todo true "Todo to create"
-// @Success 201 {object} Todo
+// @Param api body model.Todo true "Todo to create"
+// @Success 201 {object} model.Todo
 // @Router /todos [post]
 func handleCreate(c *gin.Context, svc *api.Service) {
 	handleCreateWithBroadcast(c, svc, nil)
@@ -84,7 +84,7 @@ func handleCreateWithBroadcast(c *gin.Context, svc *api.Service, hub *Hub) {
 // @Accept json
 // @Produce json
 // @Param id path int true "Todo ID"
-// @Success 200 {object} Todo
+// @Success 200 {object} model.Todo
 // @Failure 404 {object} map[string]string
 // @Router /todos/{id} [get]
 func handleGet(c *gin.Context, svc *api.Service) {
@@ -103,8 +103,8 @@ func handleGet(c *gin.Context, svc *api.Service) {
 // @Accept json
 // @Produce json
 // @Param id path int true "Todo ID"
-// @Param api body Todo true "Todo to update"
-// @Success 200 {object} Todo
+// @Param api body model.Todo true "Todo to update"
+// @Success 200 {object} model.Todo
 // @Failure 400 {object} map[string]string
 // @Router /todos/{id} [put]
 func handleUpdate(c *gin.Context, svc *api.Service) {

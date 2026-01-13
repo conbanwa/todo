@@ -27,9 +27,19 @@ type LoginRequest struct {
 
 // AuthService handles authentication operations
 type AuthService struct {
-	userStore UserStore
+	UserStore UserStore
 	jwtSecret []byte
 }
+
+// func NewUserStore() UserStore {
+// 	secret := os.Getenv("JWT_SECRET")
+// 	if secret == "" {
+// 		secret = "default-secret-key-change-in-production"
+// 	}
+// 	return UserStore{
+// 		jwtSecret: []byte(secret),
+// 	}
+// }
 
 // NewAuthService creates a new AuthService
 func NewAuthService(userStore UserStore) *AuthService {
@@ -38,7 +48,7 @@ func NewAuthService(userStore UserStore) *AuthService {
 		secret = "default-secret-key-change-in-production"
 	}
 	return &AuthService{
-		userStore: userStore,
+		UserStore: userStore,
 		jwtSecret: []byte(secret),
 	}
 }
@@ -56,13 +66,13 @@ func (a *AuthService) Register(req *RegisterRequest) (*model.User, error) {
 	}
 
 	// Check if user already exists
-	_, err := a.userStore.GetByEmail(req.Email)
+	_, err := a.UserStore.GetByEmail(req.Email)
 	if err == nil {
 		return nil, ErrInvalid("email already registered")
 	}
 
 	// Check if username already exists
-	_, err = a.userStore.GetByUsername(req.Username)
+	_, err = a.UserStore.GetByUsername(req.Username)
 	if err == nil {
 		return nil, ErrInvalid("username already taken")
 	}
@@ -80,7 +90,7 @@ func (a *AuthService) Register(req *RegisterRequest) (*model.User, error) {
 		PasswordHash: hashedPassword,
 	}
 
-	id, err := a.userStore.Create(user)
+	id, err := a.UserStore.Create(user)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
@@ -99,7 +109,7 @@ func (a *AuthService) Login(req *LoginRequest) (*model.User, string, error) {
 	}
 
 	// Get user by email
-	user, err := a.userStore.GetByEmail(req.Email)
+	user, err := a.UserStore.GetByEmail(req.Email)
 	if err != nil {
 		return nil, "", ErrInvalid("invalid email or password")
 	}
