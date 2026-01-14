@@ -1,7 +1,7 @@
 name: Upload & Restart on Oracle Cloud
 
 on:
-  # workflow_run:
+  workflow_run:
     # workflows: ["Release Go Binary"]
     # types: [completed]
 
@@ -22,7 +22,7 @@ jobs:
         path: ./dist
 
     - name: Deploy via SSH
-      uses: gongshi/ssh-action@v1.0.3
+      uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.ORACLE_HOST }}
         username: ${{ secrets.ORACLE_USER }}

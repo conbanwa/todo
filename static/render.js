@@ -7,32 +7,10 @@ let editingTodoId = null;
 let wsReconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
-// Get auth token from auth.js
-function getAuthHeaders() {
-    const token = typeof getAuthToken === 'function' ? getAuthToken() : null;
-    const headers = {
-        'Content-Type': 'application/json',
-    };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    return headers;
-}
-
-// Get current team ID from auth.js
-function getTeamId() {
-    if (typeof getCurrentTeamId === 'function') {
-        return getCurrentTeamId();
-    }
-    return null;
-}
-
 // Initialize WebSocket connection
 function connectWebSocket() {
     try {
-        const token = typeof getAuthToken === 'function' ? getAuthToken() : null;
-        const wsUrl = token ? `${WS_URL}?token=${encodeURIComponent(token)}` : WS_URL;
-        ws = new WebSocket(wsUrl);
+        ws = new WebSocket(WS_URL);
         
         ws.onopen = () => {
             console.log('WebSocket connected');
@@ -129,16 +107,9 @@ async function loadTodos() {
         if (sortBy) params.append('sort_by', sortBy);
         if (sortOrder) params.append('order', sortOrder);
         
-        const teamId = getTeamId();
-        if (teamId) {
-            params.append('team_id', teamId);
-        }
-        
         url += params.toString();
         
-        const response = await fetch(url, {
-            headers: getAuthHeaders()
-        });
+        const response = await fetch(url);
         if (!response.ok) throw new Error('Failed to load todos');
         
         todos = await response.json();
@@ -210,16 +181,11 @@ function formatDate(dateString) {
 // Create todo
 async function createTodo(todoData) {
     try {
-        const teamId = getTeamId();
-        if (!teamId) {
-            throw new Error('Please select a team first');
-        }
-        
-        todoData.team_id = teamId;
-        
         const response = await fetch(`${API_BASE}/todos`, {
             method: 'POST',
-            headers: getAuthHeaders(),
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify(todoData)
         });
         
@@ -248,14 +214,11 @@ async function createTodo(todoData) {
 // Update todo
 async function updateTodo(id, todoData) {
     try {
-        const teamId = getTeamId();
-        if (teamId) {
-            todoData.team_id = teamId;
-        }
-        
         const response = await fetch(`${API_BASE}/todos/${id}`, {
             method: 'PUT',
-            headers: getAuthHeaders(),
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify(todoData)
         });
         
@@ -290,8 +253,7 @@ async function deleteTodo(id) {
     
     try {
         const response = await fetch(`${API_BASE}/todos/${id}`, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
+            method: 'DELETE'
         });
         
         if (!response.ok) {
@@ -388,20 +350,13 @@ document.getElementById('sortBy').addEventListener('change', loadTodos);
 document.getElementById('sortOrder').addEventListener('change', loadTodos);
 document.getElementById('searchInput').addEventListener('input', renderTodos);
 
-// Initialize - only if authenticated
-document.addEventListener('DOMContentLoaded', () => {
-    // Wait for auth.js to initialize
-    setTimeout(() => {
-        if (typeof isAuthenticated === 'function' && isAuthenticated()) {
-            connectWebSocket();
-            loadTodos();
-            
-            // Polling fallback if WebSocket is not available
-            setInterval(() => {
-                if (!ws || ws.readyState !== WebSocket.OPEN) {
-                    loadTodos();
-                }
-            }, 5000); // Poll every 5 seconds if WebSocket is down
-        }
-    }, 100);
-});
+// Initialize
+connectWebSocket();
+loadTodos();
+
+// Polling fallback if WebSocket is not available
+setInterval(() => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        loadTodos();
+    }
+}, 5000); // Poll every 5 seconds if WebSocket is down

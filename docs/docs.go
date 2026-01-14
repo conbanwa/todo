@@ -24,138 +24,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/auth/login": {
-            "post": {
-                "description": "Login with email and password, returns JWT token",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Login user",
-                "parameters": [
-                    {
-                        "description": "Login request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/transport.LoginRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/transport.LoginResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/me": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get the current authenticated user's information",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Get current user",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/model.User"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/register": {
-            "post": {
-                "description": "Register a new user account",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Register new user",
-                "parameters": [
-                    {
-                        "description": "Registration request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/transport.RegisterRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/model.User"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/todos": {
             "get": {
                 "description": "Get a list of todos",
@@ -189,14 +57,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Todo"
+                                "$ref": "#/definitions/todo.Todo"
                             }
                         }
                     }
                 }
             },
             "post": {
-                "description": "Create a new api",
+                "description": "Create a new todo",
                 "consumes": [
                     "application/json"
                 ],
@@ -206,15 +74,15 @@ const docTemplate = `{
                 "tags": [
                     "todos"
                 ],
-                "summary": "Create api",
+                "summary": "Create todo",
                 "parameters": [
                     {
                         "description": "Todo to create",
-                        "name": "api",
+                        "name": "todo",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.Todo"
+                            "$ref": "#/definitions/todo.Todo"
                         }
                     }
                 ],
@@ -222,7 +90,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/model.Todo"
+                            "$ref": "#/definitions/todo.Todo"
                         }
                     }
                 }
@@ -230,7 +98,7 @@ const docTemplate = `{
         },
         "/todos/{id}": {
             "get": {
-                "description": "Get a api by ID",
+                "description": "Get a todo by ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -240,7 +108,7 @@ const docTemplate = `{
                 "tags": [
                     "todos"
                 ],
-                "summary": "Get api",
+                "summary": "Get todo",
                 "parameters": [
                     {
                         "type": "integer",
@@ -254,7 +122,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Todo"
+                            "$ref": "#/definitions/todo.Todo"
                         }
                     },
                     "404": {
@@ -269,7 +137,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Update a api by ID",
+                "description": "Update a todo by ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -279,7 +147,7 @@ const docTemplate = `{
                 "tags": [
                     "todos"
                 ],
-                "summary": "Update api",
+                "summary": "Update todo",
                 "parameters": [
                     {
                         "type": "integer",
@@ -290,11 +158,11 @@ const docTemplate = `{
                     },
                     {
                         "description": "Todo to update",
-                        "name": "api",
+                        "name": "todo",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.Todo"
+                            "$ref": "#/definitions/todo.Todo"
                         }
                     }
                 ],
@@ -302,7 +170,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Todo"
+                            "$ref": "#/definitions/todo.Todo"
                         }
                     },
                     "400": {
@@ -317,11 +185,11 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Delete a api by ID",
+                "description": "Delete a todo by ID",
                 "tags": [
                     "todos"
                 ],
-                "summary": "Delete api",
+                "summary": "Delete todo",
                 "parameters": [
                     {
                         "type": "integer",
@@ -349,7 +217,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "model.Status": {
+        "todo.Status": {
             "type": "string",
             "enum": [
                 "not_started",
@@ -362,7 +230,7 @@ const docTemplate = `{
                 "Completed"
             ]
         },
-        "model.Todo": {
+        "todo.Todo": {
             "type": "object",
             "properties": {
                 "description": {
@@ -381,82 +249,13 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
-                    "$ref": "#/definitions/model.Status"
+                    "$ref": "#/definitions/todo.Status"
                 },
                 "tags": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
-                },
-                "team_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "model.User": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "transport.LoginRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "password"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "transport.LoginResponse": {
-            "type": "object",
-            "properties": {
-                "token": {
-                    "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/model.User"
-                }
-            }
-        },
-        "transport.RegisterRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "password",
-                "username"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string",
-                    "minLength": 6
-                },
-                "username": {
-                    "type": "string"
                 }
             }
         }
@@ -465,16 +264,14 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "0.1.0",
+	Version:          "0.1.1",
 	Host:             "localhost:8080",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Todo API",
-	Description:      "Minimal Todo API generated with swag",
+	Description:      "Todo API generated with swag",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
-	LeftDelim:        "{{",
-	RightDelim:       "}}",
 }
 
 func init() {

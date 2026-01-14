@@ -18,138 +18,6 @@
     "host": "localhost:8080",
     "basePath": "/",
     "paths": {
-        "/auth/login": {
-            "post": {
-                "description": "Login with email and password, returns JWT token",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Login user",
-                "parameters": [
-                    {
-                        "description": "Login request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/transport.LoginRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/transport.LoginResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/me": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get the current authenticated user's information",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Get current user",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/model.User"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/register": {
-            "post": {
-                "description": "Register a new user account",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Register new user",
-                "parameters": [
-                    {
-                        "description": "Registration request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/transport.RegisterRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/model.User"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/todos": {
             "get": {
                 "description": "Get a list of todos",
@@ -183,14 +51,14 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Todo"
+                                "$ref": "#/definitions/todo.Todo"
                             }
                         }
                     }
                 }
             },
             "post": {
-                "description": "Create a new api",
+                "description": "Create a new todo",
                 "consumes": [
                     "application/json"
                 ],
@@ -200,15 +68,15 @@
                 "tags": [
                     "todos"
                 ],
-                "summary": "Create api",
+                "summary": "Create todo",
                 "parameters": [
                     {
                         "description": "Todo to create",
-                        "name": "api",
+                        "name": "todo",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.Todo"
+                            "$ref": "#/definitions/todo.Todo"
                         }
                     }
                 ],
@@ -216,7 +84,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/model.Todo"
+                            "$ref": "#/definitions/todo.Todo"
                         }
                     }
                 }
@@ -224,7 +92,7 @@
         },
         "/todos/{id}": {
             "get": {
-                "description": "Get a api by ID",
+                "description": "Get a todo by ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -234,7 +102,7 @@
                 "tags": [
                     "todos"
                 ],
-                "summary": "Get api",
+                "summary": "Get todo",
                 "parameters": [
                     {
                         "type": "integer",
@@ -248,7 +116,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Todo"
+                            "$ref": "#/definitions/todo.Todo"
                         }
                     },
                     "404": {
@@ -263,7 +131,7 @@
                 }
             },
             "put": {
-                "description": "Update a api by ID",
+                "description": "Update a todo by ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -273,7 +141,7 @@
                 "tags": [
                     "todos"
                 ],
-                "summary": "Update api",
+                "summary": "Update todo",
                 "parameters": [
                     {
                         "type": "integer",
@@ -284,11 +152,11 @@
                     },
                     {
                         "description": "Todo to update",
-                        "name": "api",
+                        "name": "todo",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.Todo"
+                            "$ref": "#/definitions/todo.Todo"
                         }
                     }
                 ],
@@ -296,7 +164,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Todo"
+                            "$ref": "#/definitions/todo.Todo"
                         }
                     },
                     "400": {
@@ -311,11 +179,11 @@
                 }
             },
             "delete": {
-                "description": "Delete a api by ID",
+                "description": "Delete a todo by ID",
                 "tags": [
                     "todos"
                 ],
-                "summary": "Delete api",
+                "summary": "Delete todo",
                 "parameters": [
                     {
                         "type": "integer",
@@ -343,7 +211,7 @@
         }
     },
     "definitions": {
-        "model.Status": {
+        "todo.Status": {
             "type": "string",
             "enum": [
                 "not_started",
@@ -356,7 +224,7 @@
                 "Completed"
             ]
         },
-        "model.Todo": {
+        "todo.Todo": {
             "type": "object",
             "properties": {
                 "description": {
@@ -375,82 +243,13 @@
                     "type": "integer"
                 },
                 "status": {
-                    "$ref": "#/definitions/model.Status"
+                    "$ref": "#/definitions/todo.Status"
                 },
                 "tags": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
-                },
-                "team_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "model.User": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "transport.LoginRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "password"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "transport.LoginResponse": {
-            "type": "object",
-            "properties": {
-                "token": {
-                    "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/model.User"
-                }
-            }
-        },
-        "transport.RegisterRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "password",
-                "username"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string",
-                    "minLength": 6
-                },
-                "username": {
-                    "type": "string"
                 }
             }
         }

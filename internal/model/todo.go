@@ -18,5 +18,4 @@ type Todo struct {
 	Status      Status    `json:"status"`
 	Priority    int       `json:"priority,omitempty"`
 	Tags        []string  `json:"tags,omitempty"`
-	TeamID      int64     `json:"team_id"`
 }

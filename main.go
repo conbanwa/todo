@@ -81,8 +81,6 @@ func main() {
 
 	// register API routes with WebSocket broadcasting
 	transport.RegisterRoutesWithHub(r, svc, hub)
-	authService := api.NewAuthService(svc.UserStore)
-	transport.RegisterAuthRoutes(r, authService)
 
 	// Graceful shutdown handling
 	sigChan := make(chan os.Signal, 1)
