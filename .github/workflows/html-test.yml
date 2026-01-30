@@ -32,10 +32,6 @@ jobs:
         npm init -y
         npm install --save-dev html-validate puppeteer jest @jest/globals jsdom
 
-    - name: Validate HTML structure
-      run: |
-        npx html-validate static/index.html || exit 1
-
     - name: Check required elements exist
       run: |
         node -e "
@@ -106,3 +102,7 @@ jobs:
         }
         console.log('Basic accessibility checks passed');
         "
+
+    - name: Validate HTML structure
+      run: |
+        npx html-validate static/index.html || exit 1
