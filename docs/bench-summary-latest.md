@@ -1,4 +1,66 @@
-# Benchmark Summary - 2026-02-02 04:03 UTC
+# Benchmark Summary - 2026-02-02 06:31 UTC
 
 | Benchmark | ns/op | B/op | allocs/op |
 |-----------|-------|------|-----------|
+| BenchmarkService_Create- | 69697 | 680 | 27 |
+| BenchmarkService_Create- | 71930 | 680 | 27 |
+| BenchmarkService_Create- | 71170 | 680 | 27 |
+| BenchmarkService_Create- | 70045 | 680 | 27 |
+| BenchmarkService_Create- | 70355 | 680 | 27 |
+| BenchmarkService_Create- | 70479 | 680 | 27 |
+| BenchmarkService_Create- | 70305 | 680 | 27 |
+| BenchmarkService_Create- | 70051 | 680 | 27 |
+| BenchmarkService_Create- | 70246 | 680 | 27 |
+| BenchmarkService_Create- | 69829 | 680 | 27 |
+| BenchmarkService_List_Empty- | 49842 | 720 | 20 |
+| BenchmarkService_List_Empty- | 50380 | 720 | 20 |
+| BenchmarkService_List_Empty- | 39910 | 720 | 20 |
+| BenchmarkService_List_Empty- | 39955 | 720 | 20 |
+| BenchmarkService_List_Empty- | 39664 | 720 | 20 |
+| BenchmarkService_List_Empty- | 39839 | 720 | 20 |
+| BenchmarkService_List_Empty- | 40102 | 720 | 20 |
+| BenchmarkService_List_Empty- | 40286 | 720 | 20 |
+| BenchmarkService_List_Empty- | 40606 | 720 | 20 |
+| BenchmarkService_List_Empty- | 40435 | 720 | 20 |
+| BenchmarkService_List_ | 2387370 | 978871 | 19781 |
+| BenchmarkService_List_ | 2395123 | 978873 | 19781 |
+| BenchmarkService_List_ | 2392102 | 978856 | 19781 |
+| BenchmarkService_List_ | 2396254 | 978858 | 19781 |
+| BenchmarkService_List_ | 2387514 | 978867 | 19781 |
+| BenchmarkService_List_ | 2403368 | 978876 | 19781 |
+| BenchmarkService_List_ | 2395853 | 978868 | 19781 |
+| BenchmarkService_List_ | 2397413 | 978866 | 19781 |
+| BenchmarkService_List_ | 2398914 | 978880 | 19781 |
+| BenchmarkService_List_ | 2400437 | 978871 | 19781 |
+| BenchmarkService_Get- | 42784 | 1128 | 39 |
+| BenchmarkService_Get- | 42794 | 1128 | 39 |
+| BenchmarkService_Get- | 42668 | 1128 | 39 |
+| BenchmarkService_Get- | 41643 | 1128 | 39 |
+| BenchmarkService_Get- | 41427 | 1128 | 39 |
+| BenchmarkService_Get- | 42286 | 1128 | 39 |
+| BenchmarkService_Get- | 42519 | 1128 | 39 |
+| BenchmarkService_Get- | 41972 | 1128 | 39 |
+| BenchmarkService_Get- | 42314 | 1128 | 39 |
+| BenchmarkService_Get- | 41978 | 1128 | 39 |
+| BenchmarkService_Update- | 106596 | 1840 | 67 |
+| BenchmarkService_Update- | 106900 | 1840 | 67 |
+| BenchmarkService_Update- | 110025 | 1840 | 67 |
+| BenchmarkService_Update- | 109333 | 1840 | 67 |
+| BenchmarkService_Update- | 109981 | 1840 | 67 |
+| BenchmarkService_Update- | 107022 | 1840 | 67 |
+| BenchmarkService_Update- | 108421 | 1840 | 67 |
+| BenchmarkService_Update- | 108645 | 1840 | 67 |
+| BenchmarkService_Update- | 107744 | 1840 | 67 |
+| BenchmarkService_Update- | 106404 | 1840 | 67 |
+| BenchmarkService_Delete- | 60274 | 144 | 7 |
+| BenchmarkService_Delete- | 60600 | 144 | 7 |
+| BenchmarkService_Delete- | 58696 | 144 | 7 |
+| BenchmarkService_Delete- | 59921 | 144 | 7 |
+| BenchmarkService_Delete- | 59377 | 144 | 7 |
+| BenchmarkService_Delete- | 60072 | 144 | 7 |
+| BenchmarkService_Delete- | 60003 | 144 | 7 |
+| BenchmarkService_Delete- | 60902 | 144 | 7 |
+| BenchmarkService_Delete- | 59462 | 144 | 7 |
+| BenchmarkService_Delete- | 59401 | 144 | 7 |
+
+**Total benchmarks found:** 90
