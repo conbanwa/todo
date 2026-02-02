@@ -28,15 +28,15 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          go test ./... -bench=. -run=^$ -benchmem -count=10 -benchtime=3s | tee bench.txt
+          go test ./... -bench=. -run=^$ -benchmem -count=20 -benchtime=5s | tee bench.txt
 
-      - name: Save benchmark results to doc/
+      - name: Save benchmark results to docs/
         run: |
-          mkdir -p doc
-          cp bench.txt doc/bench-latest.txt
+          mkdir -p docs
+          cp bench.txt docs/bench-latest.txt
           git config user.name "github-actions[bot]"
           git config user.email "github-actions@github.com"
-          git add doc/bench-latest.txt
+          git add docs/bench-latest.txt
           if git diff --staged --quiet; then
             echo "No changes to benchmark results"
           else
