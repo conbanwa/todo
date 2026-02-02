@@ -69,8 +69,9 @@ func (h *Hub) Run() {
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client] = true
+			count := len(h.clients)
 			h.mu.Unlock()
-			log.Printf("Client registered. Total clients: %d", len(h.clients))
+			log.Printf("Client registered. Total clients: %d", count)
 
 		case client := <-h.unregister:
 			h.mu.Lock()
@@ -78,8 +79,9 @@ func (h *Hub) Run() {
 				delete(h.clients, client)
 				close(client.send)
 			}
+			count := len(h.clients)
 			h.mu.Unlock()
-			log.Printf("Client unregistered. Total clients: %d", len(h.clients))
+			log.Printf("Client unregistered. Total clients: %d", count)
 
 		case message := <-h.broadcast:
 			h.mu.RLock()
@@ -115,7 +117,6 @@ func (h *Hub) Close() {
 	defer h.mu.Unlock()
 	for client := range h.clients {
 		client.conn.Close()
-		close(client.send)
 		delete(h.clients, client)
 	}
 }
