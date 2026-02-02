@@ -5,17 +5,16 @@ import (
 	"time"
 
 	"github.com/conbanwa/todo/internal/dao/cache"
-	"github.com/conbanwa/todo/internal/dao/cache/api"
 	"github.com/conbanwa/todo/internal/dao/db"
 	"github.com/conbanwa/todo/internal/model"
 )
 
-func setupBenchService(b *testing.B) *api.Service {
+func setupBenchService(b *testing.B) *Service {
 	store, err := db.NewSQLiteStore(":memory:")
 	if err != nil {
 		b.Fatal(err)
 	}
-	return api.NewService(store)
+	return NewService(store)
 }
 
 func BenchmarkService_Create(b *testing.B) {
