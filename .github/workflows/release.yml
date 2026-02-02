@@ -3,7 +3,7 @@ name: Release Go Binary
 # 仅在上游 Go workflow 成功完成后触发
 on:
   workflow_run:
-    workflows: ["Go"]
+    workflows: ["Benchmark"]
     types: [completed]
 
 permissions:

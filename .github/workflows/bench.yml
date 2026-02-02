@@ -1,0 +1,45 @@
+name: Benchmark
+
+on:
+  workflow_run:
+    workflows: ["Go"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+
+jobs:
+  benchmark:
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Run benchmarks
+        run: |
+          go test ./... -bench=. -run=^$ -benchmem -count=10 -benchtime=3s | tee bench.txt
+
+      - name: Save benchmark results to doc/
+        run: |
+          mkdir -p doc
+          cp bench.txt doc/bench-latest.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions@github.com"
+          git add doc/bench-latest.txt
+          if git diff --staged --quiet; then
+            echo "No changes to benchmark results"
+          else
+            git commit -m "chore: update benchmark results [skip ci]"
+            git push
+          fi
