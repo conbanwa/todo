@@ -33,7 +33,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          go test ./... -bench=. -run=^$ -benchmem -count=10 -benchtime=3s -timeout=10m | tee bench-raw.txt
+          go test ./... -bench=. -run=^$ -benchmem -count=10 -benchtime=3s -timeout=5m | tee bench-raw.txt
 
       - name: Save benchmark results to docs/
         run: |

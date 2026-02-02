@@ -107,7 +107,7 @@ func (h *Hub) Broadcast(msg WSMessage) {
 	select {
 	case h.broadcast <- msg:
 	default:
-		log.Println("Hub broadcast channel full, dropping message")
+		// log.Println("Hub broadcast channel full, dropping message")
 	}
 }
 
