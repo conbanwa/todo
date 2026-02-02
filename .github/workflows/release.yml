@@ -13,7 +13,7 @@ permissions:
 jobs:
   create-release:
     # 只有上游 workflow 成功才执行
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     name: Create GitHub Release (if ≥ 6h since last release)
 

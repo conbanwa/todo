@@ -28,17 +28,48 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          go test ./... -bench=. -run=^$ -benchmem -count=20 -benchtime=5s | tee bench.txt
+          go test ./... -v -bench=. -run=^$ -benchmem -count=10 -benchtime=3s -timeout=10m | tee bench-raw.txt
 
       - name: Save benchmark results to docs/
         run: |
           mkdir -p docs
-          cp bench.txt docs/bench-latest.txt
+
+          # Save raw output
+          cp bench-raw.txt docs/bench-raw-latest.txt
+
+          # Generate human-readable summary table
+          echo "# Benchmark Summary - $(date '+%Y-%m-%d %H:%M UTC')" > docs/bench-summary-latest.md
+          echo "" >> docs/bench-summary-latest.md
+          echo "| Benchmark | ns/op | B/op | allocs/op |" >> docs/bench-summary-latest.md
+          echo "|-----------|-------|------|-----------|" >> docs/bench-summary-latest.md
+
+          grep -E "^Benchmark" bench-raw.txt | while read -r line; do
+            name=$(echo "$line" | awk '{print $1}')
+            nsop=$(echo "$line" | grep -o ' [0-9.]\+ ns/op' | awk '{print $1}')
+            bop=$(echo "$line" | grep -o ' [0-9.]\+ B/op' | awk '{print $1}')
+            allocs=$(echo "$line" | grep -o ' [0-9.]\+ allocs/op' | awk '{print $1}')
+            echo "| $name | $nsop | $bop | $allocs |" >> docs/bench-summary-latest.md
+          done
+
+          # Generate comparison using benchstat (if previous exists)
+          if [ -f docs/bench-last.txt ]; then
+            echo "# Benchmark Comparison vs Previous" >> docs/bench-comparison-latest.md
+            echo "Generated: $(date '+%Y-%m-%d %H:%M UTC')" >> docs/bench-comparison-latest.md
+            echo "" >> docs/bench-comparison-latest.md
+            benchstat docs/bench-last.txt bench-raw.txt >> docs/bench-comparison-latest.md
+          else
+            echo "# First benchmark run - no comparison yet" > docs/bench-comparison-latest.md
+          fi
+
+          # Update last benchmark for next run
+          cp bench-raw.txt docs/bench-last.txt
+
+          # Commit all files
           git config user.name "github-actions[bot]"
           git config user.email "github-actions@github.com"
-          git add docs/bench-latest.txt
+          git add docs/bench-*.txt docs/bench-*.md
           if git diff --staged --quiet; then
-            echo "No changes to benchmark results"
+            echo "No benchmark changes"
           else
             git commit -m "chore: update benchmark results [skip ci]"
             git push
