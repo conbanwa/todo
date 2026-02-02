@@ -44,12 +44,19 @@ jobs:
           echo "|-----------|-------|------|-----------|" >> docs/bench-summary-latest.md
 
           grep -E "^Benchmark" bench-raw.txt | while read -r line; do
-            name=$(echo "$line" | awk '{print $1}')
-            nsop=$(echo "$line" | grep -o ' [0-9.]\+ ns/op' | awk '{print $1}')
-            bop=$(echo "$line" | grep -o ' [0-9.]\+ B/op' | awk '{print $1}')
-            allocs=$(echo "$line" | grep -o ' [0-9.]\+ allocs/op' | awk '{print $1}')
-            echo "| $name | $nsop | $bop | $allocs |" >> docs/bench-summary-latest.md
+            # Extract name (everything before first number)
+            name=$(echo "$line" | sed -E 's/([0-9].*)//')
+            nsop=$(echo "$line" | grep -o '[0-9.]\+ ns/op' | head -1 | awk '{print $1}')
+            bop=$(echo "$line" | grep -o '[0-9.]\+ B/op' | head -1 | awk '{print $1}')
+            allocs=$(echo "$line" | grep -o '[0-9.]\+ allocs/op' | head -1 | awk '{print $1}')
+            if [ -n "$name" ] && [ -n "$nsop" ]; then
+              echo "| $name | $nsop | ${bop:-N/A} | ${allocs:-N/A} |" >> docs/bench-summary-latest.md
+            fi
           done
+
+          # Add diagnostic info
+          echo "" >> docs/bench-summary-latest.md
+          echo "**Total benchmarks found:** $(grep -c '^Benchmark' bench-raw.txt)" >> docs/bench-summary-latest.md
 
           # Generate comparison using benchstat (if previous exists)
           if [ -f docs/bench-last.txt ]; then
