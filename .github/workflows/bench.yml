@@ -26,9 +26,14 @@ jobs:
         with:
           go-version: '1.25'
 
+      - name: Install benchstat
+        run: |
+          go install golang.org/x/perf/cmd/benchstat@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
       - name: Run benchmarks
         run: |
-          go test ./... -v -bench=. -run=^$ -benchmem -count=10 -benchtime=3s -timeout=10m | tee bench-raw.txt
+          go test ./... -bench=. -run=^$ -benchmem -count=10 -benchtime=3s -timeout=10m | tee bench-raw.txt
 
       - name: Save benchmark results to docs/
         run: |
@@ -43,29 +48,34 @@ jobs:
           echo "| Benchmark | ns/op | B/op | allocs/op |" >> docs/bench-summary-latest.md
           echo "|-----------|-------|------|-----------|" >> docs/bench-summary-latest.md
 
-          grep -E "^Benchmark" bench-raw.txt | while read -r line; do
-            # Extract name (everything before first number)
+          grep -E '^Benchmark' bench-raw.txt | while read -r line; do
             name=$(echo "$line" | sed -E 's/([0-9].*)//')
-            nsop=$(echo "$line" | grep -o '[0-9.]\+ ns/op' | head -1 | awk '{print $1}')
-            bop=$(echo "$line" | grep -o '[0-9.]\+ B/op' | head -1 | awk '{print $1}')
-            allocs=$(echo "$line" | grep -o '[0-9.]\+ allocs/op' | head -1 | awk '{print $1}')
+            nsop=$(echo "$line" | grep -o '[0-9.]\+ ns/op' | awk '{print $1}')
+            bop=$(echo "$line" | grep -o '[0-9.]\+ B/op' | awk '{print $1}' || echo "N/A")
+            allocs=$(echo "$line" | grep -o '[0-9.]\+ allocs/op' | awk '{print $1}' || echo "N/A")
             if [ -n "$name" ] && [ -n "$nsop" ]; then
-              echo "| $name | $nsop | ${bop:-N/A} | ${allocs:-N/A} |" >> docs/bench-summary-latest.md
+              echo "| $name | $nsop | $bop | $allocs |" >> docs/bench-summary-latest.md
             fi
           done
 
           # Add diagnostic info
           echo "" >> docs/bench-summary-latest.md
-          echo "**Total benchmarks found:** $(grep -c '^Benchmark' bench-raw.txt)" >> docs/bench-summary-latest.md
+          echo "**Total benchmarks found:** $(grep -c '^Benchmark' bench-raw.txt || echo 0)" >> docs/bench-summary-latest.md
 
-          # Generate comparison using benchstat (if previous exists)
+          # Comparison using benchstat with fallback
+          echo "# Benchmark Comparison" > docs/bench-comparison-latest.md
+          echo "Generated: $(date '+%Y-%m-%d %H:%M UTC')" >> docs/bench-comparison-latest.md
+          echo "" >> docs/bench-comparison-latest.md
+
           if [ -f docs/bench-last.txt ]; then
-            echo "# Benchmark Comparison vs Previous" >> docs/bench-comparison-latest.md
-            echo "Generated: $(date '+%Y-%m-%d %H:%M UTC')" >> docs/bench-comparison-latest.md
-            echo "" >> docs/bench-comparison-latest.md
-            benchstat docs/bench-last.txt bench-raw.txt >> docs/bench-comparison-latest.md
+            if command -v benchstat >/dev/null 2>&1; then
+              echo "## Changes vs previous run" >> docs/bench-comparison-latest.md
+              benchstat docs/bench-last.txt bench-raw.txt >> docs/bench-comparison-latest.md
+            else
+              echo "benchstat not available, skipping comparison." >> docs/bench-comparison-latest.md
+            fi
           else
-            echo "# First benchmark run - no comparison yet" > docs/bench-comparison-latest.md
+            echo "First benchmark run - no previous data for comparison." >> docs/bench-comparison-latest.md
           fi
 
           # Update last benchmark for next run
