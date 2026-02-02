@@ -33,30 +33,42 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          go test ./... -bench=. -run=^$ -benchmem -count=10 -benchtime=3s -timeout=5m | tee bench-raw.txt
+          go test ./... -bench=. -run=^$ -benchmem -count=10 -benchtime=3s -timeout=8m | tee bench-raw.txt
 
       - name: Save benchmark results to docs/
         run: |
           mkdir -p docs
 
-          # Save raw output
           cp bench-raw.txt docs/bench-raw-latest.txt
 
-          # Generate human-readable summary table
           echo "# Benchmark Summary - $(date '+%Y-%m-%d %H:%M UTC')" > docs/bench-summary-latest.md
           echo "" >> docs/bench-summary-latest.md
           echo "| Benchmark | ns/op | B/op | allocs/op |" >> docs/bench-summary-latest.md
           echo "|-----------|-------|------|-----------|" >> docs/bench-summary-latest.md
 
-          grep -E '^Benchmark' bench-raw.txt | while read -r line; do
-            name=$(echo "$line" | sed -E 's/([0-9].*)//')
-            nsop=$(echo "$line" | grep -o '[0-9.]\+ ns/op' | awk '{print $1}')
-            bop=$(echo "$line" | grep -o '[0-9.]\+ B/op' | awk '{print $1}' || echo "N/A")
-            allocs=$(echo "$line" | grep -o '[0-9.]\+ allocs/op' | awk '{print $1}' || echo "N/A")
-            if [ -n "$name" ] && [ -n "$nsop" ]; then
-              echo "| $name | $nsop | $bop | $allocs |" >> docs/bench-summary-latest.md
-            fi
-          done
+          # Aggregate and average the 10 runs per benchmark (minimal change)
+          awk '
+            /^Benchmark/ {
+              # Extract base name without -N suffix
+              name = $1;
+              sub(/-.*$/, "", name);
+              nsop = $3;  # ns/op value
+              bop = $5;   # B/op value
+              allocs = $7; # allocs/op value
+              count[name]++;
+              sum_nsop[name] += nsop;
+              sum_bop[name] += bop;
+              sum_allocs[name] += allocs;
+            }
+            END {
+              for (n in count) {
+                avg_nsop = sum_nsop[n] / count[n];
+                avg_bop = sum_bop[n] / count[n];
+                avg_allocs = sum_allocs[n] / count[n];
+                printf "| %s | %.0f | %.0f | %.0f |\n", n, avg_nsop, avg_bop, avg_allocs;
+              }
+            }
+          ' bench-raw.txt >> docs/bench-summary-latest.md
 
           # Add diagnostic info
           echo "" >> docs/bench-summary-latest.md
