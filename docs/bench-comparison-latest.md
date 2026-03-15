@@ -1,5 +1,5 @@
 # Benchmark Comparison
-Generated: 2026-03-08 01:40 UTC
+Generated: 2026-03-15 02:01 UTC
 
 ## Changes vs previous run
 goos: linux
@@ -8,19 +8,19 @@ pkg: github.com/conbanwa/todo/internal/transport
 cpu: AMD EPYC 7763 64-Core Processor                
                          │ docs/bench-last.txt │           bench-raw.txt            │
                          │       sec/op        │   sec/op     vs base               │
-Service_Create-4                   74.15µ ± 1%   72.45µ ± 1%  -2.29% (p=0.000 n=10)
-Service_List_Empty-4               40.62µ ± 1%   40.97µ ± 2%       ~ (p=0.393 n=10)
-Service_List_1000Items-4           2.407m ± 1%   2.409m ± 0%       ~ (p=0.631 n=10)
-Service_Get-4                      42.35µ ± 1%   42.10µ ± 3%       ~ (p=0.579 n=10)
-Service_Update-4                   109.0µ ± 2%   109.6µ ± 2%       ~ (p=0.393 n=10)
-Service_Delete-4                   63.43µ ± 3%   63.67µ ± 1%       ~ (p=0.971 n=10)
-geomean                            113.4µ        113.2µ       -0.18%
+Service_Create-4                   72.45µ ± 1%   75.55µ ± 1%  +4.28% (p=0.000 n=10)
+Service_List_Empty-4               40.97µ ± 2%   40.92µ ± 1%       ~ (p=0.631 n=10)
+Service_List_1000Items-4           2.409m ± 0%   2.413m ± 0%       ~ (p=0.247 n=10)
+Service_Get-4                      42.10µ ± 3%   43.43µ ± 1%  +3.17% (p=0.015 n=10)
+Service_Update-4                   109.6µ ± 2%   112.2µ ± 1%  +2.42% (p=0.000 n=10)
+Service_Delete-4                   63.67µ ± 1%   64.66µ ± 2%  +1.55% (p=0.009 n=10)
+geomean                            113.2µ        115.3µ       +1.90%
 
                          │ docs/bench-last.txt │             bench-raw.txt             │
                          │        B/op         │     B/op      vs base                 │
 Service_Create-4                    680.0 ± 0%     680.0 ± 0%       ~ (p=1.000 n=10) ¹
 Service_List_Empty-4                720.0 ± 0%     720.0 ± 0%       ~ (p=1.000 n=10) ¹
-Service_List_1000Items-4          955.9Ki ± 0%   955.9Ki ± 0%  +0.00% (p=0.000 n=10)
+Service_List_1000Items-4          955.9Ki ± 0%   955.9Ki ± 0%       ~ (p=0.196 n=10)
 Service_Get-4                     1.102Ki ± 0%   1.102Ki ± 0%       ~ (p=1.000 n=10) ¹
 Service_Update-4                  1.797Ki ± 0%   1.797Ki ± 0%       ~ (p=1.000 n=10) ¹
 Service_Delete-4                    144.0 ± 0%     144.0 ± 0%       ~ (p=1.000 n=10) ¹
